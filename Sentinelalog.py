@@ -279,8 +279,8 @@ def listar_usuarios():
 
 
 def revelar_matricula():
-     """Mostra a matrícula completa e registra isso no log."""
-    if not exigir_admin():
+    """Mostra a matrícula completa e registra isso no log."""
+    if not exigir_admin(): 
         return
     print("\n--- REVELAR MATRÍCULA ---")
     usuarios = carregar_usuarios()
@@ -310,7 +310,7 @@ def editar_usuario():
             novo_obs = ler_texto(f"Observações [{u[5]}]: ", obrigatorio=False)
             print(f"Perfil atual: {u[2]}")
             if input("Alterar perfil? (s/n): ").strip().lower() == "s":
-                 novo_perfil = ler_perfil()
+                novo_perfil = ler_perfil()
                 if u[0] == usuario_logado[0] and novo_perfil != PERFIL_ADMIN:
                     print("Você não pode remover o seu próprio perfil de administrador. "
                           "Perfil mantido.")
@@ -324,7 +324,7 @@ def editar_usuario():
                     print("O horário final precisa ser maior que o inicial. Horário mantido.")
                 else:
                     u[3], u[4] = str(inicio), str(fim)
-             if input("Redefinir senha? (s/n): ").strip().lower() == "s":
+            if input("Redefinir senha? (s/n): ").strip().lower() == "s":
                 u[6] = gerar_hash(ler_senha("Nova senha: "))
             if novo_nome != "":
                 u[1] = novo_nome
@@ -340,7 +340,7 @@ def editar_usuario():
 
 
 def excluir_usuario():
-     if not exigir_admin():
+    if not exigir_admin():
         return
     print("\n--- EXCLUIR USUÁRIO ---")
     matricula = ler_texto("Matrícula do usuário a excluir: ")
@@ -359,7 +359,7 @@ def excluir_usuario():
                 print("Usuário excluído.")
             else:
                 print("Exclusão cancelada.")
-         return
+        return
 
     print("Usuário não encontrado.")
 
@@ -367,7 +367,7 @@ def excluir_usuario():
 # ---------------------------------------------------------------
 # TÓPICO 2 - Análise de risco
 # ---------------------------------------------------------------=
- def classificar_acesso(usuario, maquina, resultado, data_hora):
+def classificar_acesso(usuario, maquina, resultado, data_hora):
     """
     Avalia o acesso e devolve (nivel, motivos).
 
