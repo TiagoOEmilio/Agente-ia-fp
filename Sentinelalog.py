@@ -2,18 +2,23 @@
 
 import os
 from datetime import datetime
+import getpass
+import hashlib
+import secrets
 
 # ---------------------------------------------------------------
 # Constantes (nomes dos arquivos e configurações)
 # ---------------------------------------------------------------
-ARQ_USUARIOS = "usuarios.csv"      # matricula;nome;perfil;hora_inicio;hora_fim;observacoes
+ARQ_USUARIOS = "usuarios.csv"      # matricula;nome;perfil;hora_inicio;hora_fim;observacoes e senha_hash;senha_salt
 ARQ_ACESSOS = "acessos.csv"        # matricula;data_hora;maquina;resultado;classificacao;motivos
 ARQ_LOG = "auditoria.csv"          # data_hora;operacao;matricula_afetada
 ARQ_BLOQUEADOS = "bloqueados.txt"  # uma máquina bloqueada por linha
 
 SEP = ";"                          # separador dos campos nos arquivos
 PERFIS = ["estudante", "professor", "administrador"]
-
+PERFIL_ADMIN = "administrador"      # perfil do adm
+CAMPOS_USUARIO = 7                  # qnt de campos em cada linha do usuarios.csv
+usuario_logado = None               # variável global para armazenar o usuário logado
 
 # ---------------------------------------------------------------
 # Funções de arquivo (usadas por tudo no programa)
@@ -142,7 +147,75 @@ def ler_data_hora():
         except ValueError:
             print("Formato inválido. Exemplo: 2026-11-05 03:00")
 
+def ler_senha(mensagem):
+    """Lê uma senha (sem mostrar na tela) e pede confirmação. Mínimo de 6 caracteres."""
+    while True:
+        senha = getpass.getpass(mensagem)
+        if len(senha) < 6:
+            print("A senha precisa ter pelo menos 6 caracteres.")
+        elif getpass.getpass("Confirme a senha: ") != senha:
+            print("As senhas não conferem.")
+        else:
+            return senha
 
+#Autenticação e permissoões
+def gerar_hash(senha, salt=None):
+    """Devolve 'salt$hash'. A senha nunca é guardada em texto puro."""
+    if salt is None:
+        salt = secrets.token_hex(16)
+    h = hashlib.pbkdf2_hmac("sha256", senha.encode("utf-8"), bytes.fromhex(salt), 200_000)
+    return f"{salt}${h.hex()}"
+def verificar_senha(senha, armazenado):
+    """Confere a senha digitada com o 'salt$hash' guardado no arquivo."""
+    if "$" not in armazenado:
+        return False  # usuário antigo, ainda sem senha definida
+    salt = armazenado.split("$", 1)[0]
+    return secrets.compare_digest(gerar_hash(senha, salt), armazenado)
+def e_admin():
+    return usuario_logado is not None and usuario_logado[2] == PERFIL_ADMIN
+def exigir_admin():
+    """Barreira de segurança: usada no início de toda operação de escrita em usuários."""
+    if e_admin():
+        return True
+    print("Acesso negado: apenas o administrador pode realizar esta operação.")
+    return False
+def admin_com_senha():
+    return any(u[2] == PERFIL_ADMIN and u[6] != "" for u in carregar_usuarios())
+
+def configurar_primeiro_admin():
+    """Primeira execução (ou nenhum admin utilizável): cria o administrador inicial."""
+    print("\n=== PRIMEIRO ACESSO ===")
+    print("Nenhum administrador com senha foi encontrado. Vamos criar o primeiro.")
+    while True:
+        matricula = ler_texto("Matrícula do administrador (mín. 3 caracteres): ")
+        if len(matricula) < 3:
+            print("A matrícula precisa ter pelo menos 3 caracteres.")
+        elif buscar_usuario(matricula) is not None:
+            print("Já existe um usuário com essa matrícula. Use outra.")
+        else:
+            break
+    nome = ler_texto("Nome: ")
+    senha = ler_senha("Senha: ")
+    adicionar_linha(ARQ_USUARIOS,
+                    [matricula, nome, PERFIL_ADMIN, "0", "24", "", gerar_hash(senha)])
+    registrar_log("CADASTRAR_ADMIN_INICIAL", matricula)
+    print("primeiro Adm criado")
+def fazer_login():
+    """Pede matrícula e senha (3 tentativas). Devolve True se o login der certo."""
+    global usuario_logado
+    print("\n=== LOGIN ===")
+    for _ in range(3):
+        matricula = ler_texto("Matrícula: ")
+        senha = getpass.getpass("Senha: ")
+        usuario = buscar_usuario(matricula)
+        if usuario is not None and verificar_senha(senha, usuario[6]):
+            usuario_logado = usuario
+            registrar_log("LOGIN", matricula)
+            return True
+        print("Matrícula ou senha incorretos.")
+        registrar_log("LOGIN_FALHA", matricula)
+    print("Número máximo de tentativas atingido.")
+    return False
 # ---------------------------------------------------------------
 # TÓPICO 1 - Usuários
 # ---------------------------------------------------------------
@@ -150,16 +223,26 @@ def mascarar_matricula(matricula):
     """Mostra só os 2 primeiros caracteres. Ex.: 20240001 -> 20******"""
     return matricula[:2] + "*" * (len(matricula) - 2)
 
+def carregar_usuarios():
+    """Lê os usuários garantindo CAMPOS_USUARIO campos por linha (compatível com
+    arquivos antigos, que não tinham a coluna da senha)."""
+    usuarios = carregar_linhas(ARQ_USUARIOS)
+    for u in usuarios:
+        while len(u) < CAMPOS_USUARIO:
+            u.append("")
+    return usuarios
 
 def buscar_usuario(matricula):
     """Devolve a lista de campos do usuário, ou None se não existir."""
-    for usuario in carregar_linhas(ARQ_USUARIOS):
+    for usuario in carregar_usuarios():
         if usuario[0] == matricula:
             return usuario
     return None
 
 
 def cadastrar_usuario():
+    if not exigir_admin():
+        return
     print("\n--- CADASTRAR USUÁRIO ---")
     matricula = ler_texto("Matrícula (mín. 3 caracteres): ")
     if len(matricula) < 3:
@@ -177,15 +260,15 @@ def cadastrar_usuario():
         print("O horário final precisa ser maior que o inicial.")
         return
     observacoes = ler_texto("Observações (opcional): ", obrigatorio=False)
-
+    senha = ler_senha("Senha inicial do usuário: ")
     adicionar_linha(ARQ_USUARIOS,
-                    [matricula, nome, perfil, str(hora_inicio), str(hora_fim), observacoes])
+                    [matricula, nome, perfil, str(hora_inicio), str(hora_fim), observacoes, gerar_hash(senha)])
     registrar_log("CADASTRAR_USUARIO", matricula)
     print("Usuário cadastrado com sucesso!")
 
 
 def listar_usuarios():
-    usuarios = carregar_linhas(ARQ_USUARIOS)
+    usuarios = carregar_usuarios()
     print("\n--- USUÁRIOS CADASTRADOS ---")
     if not usuarios:
         print("Nenhum usuário cadastrado.")
@@ -196,9 +279,11 @@ def listar_usuarios():
 
 
 def revelar_matricula():
-    """Mostra a matrícula completa e registra isso no log."""
+     """Mostra a matrícula completa e registra isso no log."""
+    if not exigir_admin():
+        return
     print("\n--- REVELAR MATRÍCULA ---")
-    usuarios = carregar_linhas(ARQ_USUARIOS)
+    usuarios = carregar_usuarios()
     if not usuarios:
         print("Nenhum usuário cadastrado.")
         return
@@ -212,9 +297,11 @@ def revelar_matricula():
 
 
 def editar_usuario():
+    if not exigir_admin():
+        return
     print("\n--- EDITAR USUÁRIO ---")
     matricula = ler_texto("Matrícula do usuário a editar: ")
-    usuarios = carregar_linhas(ARQ_USUARIOS)
+    usuarios = carregar_usuarios()
 
     for u in usuarios:
         if u[0] == matricula:
@@ -223,7 +310,12 @@ def editar_usuario():
             novo_obs = ler_texto(f"Observações [{u[5]}]: ", obrigatorio=False)
             print(f"Perfil atual: {u[2]}")
             if input("Alterar perfil? (s/n): ").strip().lower() == "s":
-                u[2] = ler_perfil()
+                 novo_perfil = ler_perfil()
+                if u[0] == usuario_logado[0] and novo_perfil != PERFIL_ADMIN:
+                    print("Você não pode remover o seu próprio perfil de administrador. "
+                          "Perfil mantido.")
+                else:
+                    u[2] = novo_perfil
             print(f"Horário atual: {u[3]}h às {u[4]}h")
             if input("Alterar horário? (s/n): ").strip().lower() == "s":
                 inicio = ler_inteiro("Início (0 a 23): ", 0, 23)
@@ -232,7 +324,8 @@ def editar_usuario():
                     print("O horário final precisa ser maior que o inicial. Horário mantido.")
                 else:
                     u[3], u[4] = str(inicio), str(fim)
-
+             if input("Redefinir senha? (s/n): ").strip().lower() == "s":
+                u[6] = gerar_hash(ler_senha("Nova senha: "))
             if novo_nome != "":
                 u[1] = novo_nome
             if novo_obs != "":
@@ -247,9 +340,14 @@ def editar_usuario():
 
 
 def excluir_usuario():
+     if not exigir_admin():
+        return
     print("\n--- EXCLUIR USUÁRIO ---")
     matricula = ler_texto("Matrícula do usuário a excluir: ")
-    usuarios = carregar_linhas(ARQ_USUARIOS)
+    if matricula == usuario_logado[0]:
+        print("Você não pode excluir o seu próprio usuário.")
+        return
+    usuarios = carregar_usuarios()
 
     for u in usuarios:
         if u[0] == matricula:
@@ -261,15 +359,15 @@ def excluir_usuario():
                 print("Usuário excluído.")
             else:
                 print("Exclusão cancelada.")
-            return
+         return
 
     print("Usuário não encontrado.")
 
 
 # ---------------------------------------------------------------
 # TÓPICO 2 - Análise de risco
-# ---------------------------------------------------------------
-def classificar_acesso(usuario, maquina, resultado, data_hora):
+# ---------------------------------------------------------------=
+ def classificar_acesso(usuario, maquina, resultado, data_hora):
     """
     Avalia o acesso e devolve (nivel, motivos).
 
@@ -354,37 +452,39 @@ def consultar_acessos():
 # Menus
 # ---------------------------------------------------------------
 def menu_usuarios():
+    def menu_usuarios():
+    # Administrador: acesso completo. Demais perfis: somente visualização.
+     if e_admin():
+        opcoes = [("Cadastrar", cadastrar_usuario),
+                  ("Listar", listar_usuarios),
+                  ("Editar", editar_usuario),
+                  ("Excluir", excluir_usuario),
+                  ("Revelar matrícula", revelar_matricula)]
+     else:
+        opcoes = [("Listar", listar_usuarios)]
+
     while True:
         print("\n=== USUÁRIOS ===")
-        print("1. Cadastrar")
-        print("2. Listar")
-        print("3. Editar")
-        print("4. Excluir")
-        print("5. Revelar matrícula")
+        for numero, (nome, _) in enumerate(opcoes, start=1):
+            print(f"{numero}. {nome}")
         print("0. Voltar")
         opcao = input("Escolha: ").strip()
 
-        if opcao == "1":
-            cadastrar_usuario()
-        elif opcao == "2":
-            listar_usuarios()
-        elif opcao == "3":
-            editar_usuario()
-        elif opcao == "4":
-            excluir_usuario()
-        elif opcao == "5":
-            revelar_matricula()
-        elif opcao == "0":
+        if opcao == "0":
             break
+        elif opcao.isdigit() and 1 <= int(opcao) <= len(opcoes):
+            opcoes[int(opcao) - 1][1]()
         else:
             print("Opção inválida.")
         pausar()
+    
 
 
 def menu_principal():
     while True:
         limpar_tela()
         print("=== SentinelaLog ===")
+        print(f"Logado como: {usuario_logado[1]} ({usuario_logado[2]})")
         print("1. Gerenciar usuários")
         print("2. Registrar acesso")
         print("3. Consultar acessos")
@@ -416,4 +516,7 @@ def menu_principal():
 # ---------------------------------------------------------------
 if __name__ == "__main__":
     criar_bloqueados_se_nao_existir()
-    menu_principal()
+    if not admin_com_senha():
+        configurar_primeiro_admin()
+    if fazer_login():
+        menu_principal()
