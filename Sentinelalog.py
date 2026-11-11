@@ -452,15 +452,14 @@ def consultar_acessos():
 # Menus
 # ---------------------------------------------------------------
 def menu_usuarios():
-    def menu_usuarios():
     # Administrador: acesso completo. Demais perfis: somente visualização.
-     if e_admin():
+    if e_admin():
         opcoes = [("Cadastrar", cadastrar_usuario),
                   ("Listar", listar_usuarios),
                   ("Editar", editar_usuario),
                   ("Excluir", excluir_usuario),
                   ("Revelar matrícula", revelar_matricula)]
-     else:
+    else:
         opcoes = [("Listar", listar_usuarios)]
 
     while True:
