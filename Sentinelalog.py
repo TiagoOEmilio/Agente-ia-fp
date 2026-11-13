@@ -1,3 +1,5 @@
+# SentinelaLog - sistema de controle de acessos em Python (terminal).
+# Cadastro de usuários, registro de acessos e log de auditoria.
 
 
 import os
@@ -86,6 +88,7 @@ def registrar_log(operacao, matricula_afetada="-"):
 
 
 def consultar_log():
+    """Mostra na tela todos os registros do log de auditoria."""
     linhas = carregar_linhas(ARQ_LOG)
     print("\n--- LOG DE AUDITORIA ---")
     if not linhas:
@@ -99,10 +102,12 @@ def consultar_log():
 # Funções de entrada (validam o que o usuário digita)
 # ---------------------------------------------------------------
 def limpar_tela():
+    """Limpa a tela do terminal (cls no Windows, clear nos demais sistemas)."""
     os.system("cls" if os.name == "nt" else "clear")
 
 
 def pausar():
+    """Espera o usuário apertar Enter antes de continuar."""
     input("\nPressione Enter para continuar...")
 
 
@@ -131,6 +136,7 @@ def ler_inteiro(mensagem, minimo, maximo):
 
 
 def ler_perfil():
+    """Mostra os perfis disponíveis e devolve o perfil escolhido."""
     print("Perfis: 1-estudante  2-professor  3-administrador")
     escolha = ler_inteiro("Escolha o perfil: ", 1, 3)
     return PERFIS[escolha - 1]
@@ -172,6 +178,7 @@ def verificar_senha(senha, armazenado):
     salt = armazenado.split("$", 1)[0]
     return secrets.compare_digest(gerar_hash(senha, salt), armazenado)
 def e_admin():
+    """Devolve True se o usuário logado tem o perfil de administrador."""
     return usuario_logado is not None and usuario_logado[2] == PERFIL_ADMIN
 def exigir_admin():
     """Barreira de segurança: usada no início de toda operação de escrita em usuários."""
@@ -180,6 +187,7 @@ def exigir_admin():
     print("Acesso negado: apenas o administrador pode realizar esta operação.")
     return False
 def admin_com_senha():
+    """Devolve True se já existe algum administrador com senha cadastrada."""
     return any(u[2] == PERFIL_ADMIN and u[6] != "" for u in carregar_usuarios())
 
 def configurar_primeiro_admin():
@@ -241,6 +249,7 @@ def buscar_usuario(matricula):
 
 
 def cadastrar_usuario():
+    """Cadastra um novo usuário (somente administrador)."""
     if not exigir_admin():
         return
     print("\n--- CADASTRAR USUÁRIO ---")
@@ -268,6 +277,7 @@ def cadastrar_usuario():
 
 
 def listar_usuarios():
+    """Mostra na tela os usuários cadastrados."""
     usuarios = carregar_usuarios()
     print("\n--- USUÁRIOS CADASTRADOS ---")
     if not usuarios:
@@ -297,6 +307,7 @@ def revelar_matricula():
 
 
 def editar_usuario():
+    """Edita os dados de um usuário já cadastrado (somente administrador)."""
     if not exigir_admin():
         return
     print("\n--- EDITAR USUÁRIO ---")
@@ -340,6 +351,7 @@ def editar_usuario():
 
 
 def excluir_usuario():
+    """Exclui um usuário cadastrado (somente administrador)."""
     if not exigir_admin():
         return
     print("\n--- EXCLUIR USUÁRIO ---")
@@ -409,6 +421,7 @@ def classificar_acesso(usuario, maquina, resultado, data_hora):
 
 
 def registrar_acesso():
+    """Registra o acesso de um usuário a uma máquina e classifica o resultado."""
     print("\n--- REGISTRAR ACESSO ---")
     matricula = ler_texto("Matrícula do usuário: ")
     usuario = buscar_usuario(matricula)
@@ -438,6 +451,7 @@ def registrar_acesso():
 
 
 def consultar_acessos():
+    """Mostra na tela os acessos já registrados."""
     acessos = carregar_linhas(ARQ_ACESSOS)
     print("\n--- ACESSOS REGISTRADOS ---")
     if not acessos:
@@ -452,6 +466,7 @@ def consultar_acessos():
 # Menus
 # ---------------------------------------------------------------
 def menu_usuarios():
+    """Menu de usuários: o administrador tem acesso completo e os demais só visualizam."""
     # Administrador: acesso completo. Demais perfis: somente visualização.
     if e_admin():
         opcoes = [("Cadastrar", cadastrar_usuario),
@@ -480,6 +495,7 @@ def menu_usuarios():
 
 
 def menu_principal():
+    """Menu principal do programa, mostrado depois do login."""
     while True:
         limpar_tela()
         print("=== SentinelaLog ===")
