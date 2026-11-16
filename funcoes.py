@@ -1,16 +1,11 @@
-# SentinelaLog - sistema de controle de acessos em Python (terminal).
-# Cadastro de usuários, registro de acessos e log de auditoria.
-
-
 import os
 from datetime import datetime
 import getpass
 import hashlib
 import secrets
 
-# ---------------------------------------------------------------
 # Constantes (nomes dos arquivos e configurações)
-# ---------------------------------------------------------------
+
 ARQ_USUARIOS = "usuarios.csv"      # matricula;nome;perfil;hora_inicio;hora_fim;observacoes;senha (salt$hash)
 ARQ_ACESSOS = "acessos.csv"        # matricula;data_hora;maquina;resultado;classificacao;motivos
 ARQ_LOG = "auditoria.csv"          # data_hora;operacao;matricula_afetada
@@ -22,9 +17,8 @@ PERFIL_ADMIN = "administrador"      # perfil do adm
 CAMPOS_USUARIO = 7                  # qnt de campos em cada linha do usuarios.csv
 usuario_logado = None               # variável global para armazenar o usuário logado
 
-# ---------------------------------------------------------------
 # Funções de arquivo (usadas por tudo no programa)
-# ---------------------------------------------------------------
+
 def carregar_linhas(arquivo):
     """Lê o arquivo e devolve uma lista de listas (uma lista de campos por linha)."""
     try:
@@ -78,9 +72,8 @@ def criar_bloqueados_se_nao_existir():
             print(f"Não foi possível criar {ARQ_BLOQUEADOS}: {erro}")
 
 
-# ---------------------------------------------------------------
 # Auditoria (log)
-# ---------------------------------------------------------------
+
 def registrar_log(operacao, matricula_afetada="-"):
     """Grava no log: data/hora, qual operação e qual usuário foi afetado."""
     agora = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -98,9 +91,8 @@ def consultar_log():
         print(f"{campos[0]} | {campos[1]} | usuário afetado: {campos[2]}")
 
 
-# ---------------------------------------------------------------
 # Funções de entrada (validam o que o usuário digita)
-# ---------------------------------------------------------------
+
 def limpar_tela():
     """Limpa a tela do terminal (cls no Windows, clear nos demais sistemas)."""
     os.system("cls" if os.name == "nt" else "clear")
@@ -224,9 +216,9 @@ def fazer_login():
         registrar_log("LOGIN_FALHA", matricula)
     print("Número máximo de tentativas atingido.")
     return False
-# ---------------------------------------------------------------
-# TÓPICO 1 - Usuários
-# ---------------------------------------------------------------
+
+# Usuários
+
 def mascarar_matricula(matricula):
     """Mostra só os 2 primeiros caracteres. Ex.: 20240001 -> 20******"""
     return matricula[:2] + "*" * (len(matricula) - 2)
@@ -290,7 +282,7 @@ def listar_usuarios():
 
 def revelar_matricula():
     """Mostra a matrícula completa e registra isso no log."""
-    if not exigir_admin(): 
+    if not exigir_admin():
         return
     print("\n--- REVELAR MATRÍCULA ---")
     usuarios = carregar_usuarios()
@@ -376,9 +368,9 @@ def excluir_usuario():
     print("Usuário não encontrado.")
 
 
-# ---------------------------------------------------------------
-# TÓPICO 2 - Análise de risco
-# ---------------------------------------------------------------
+
+# Análise de risco
+
 def classificar_acesso(usuario, maquina, resultado, data_hora):
     """
     Avalia o acesso e devolve (nivel, motivos).
@@ -460,78 +452,3 @@ def consultar_acessos():
     for a in acessos:
         print(f"{a[1]} | {mascarar_matricula(a[0])} | {a[2]} | {a[3]} | "
               f"{a[4].upper()} | motivo: {a[5]}")
-
-
-# ---------------------------------------------------------------
-# Menus
-# ---------------------------------------------------------------
-def menu_usuarios():
-    """Menu de usuários: o administrador tem acesso completo e os demais só visualizam."""
-    # Administrador: acesso completo. Demais perfis: somente visualização.
-    if e_admin():
-        opcoes = [("Cadastrar", cadastrar_usuario),
-                  ("Listar", listar_usuarios),
-                  ("Editar", editar_usuario),
-                  ("Excluir", excluir_usuario),
-                  ("Revelar matrícula", revelar_matricula)]
-    else:
-        opcoes = [("Listar", listar_usuarios)]
-
-    while True:
-        print("\n=== USUÁRIOS ===")
-        for numero, (nome, _) in enumerate(opcoes, start=1):
-            print(f"{numero}. {nome}")
-        print("0. Voltar")
-        opcao = input("Escolha: ").strip()
-
-        if opcao == "0":
-            break
-        elif opcao.isdigit() and 1 <= int(opcao) <= len(opcoes):
-            opcoes[int(opcao) - 1][1]()
-        else:
-            print("Opção inválida.")
-        pausar()
-    
-
-
-def menu_principal():
-    """Menu principal do programa, mostrado depois do login."""
-    while True:
-        limpar_tela()
-        print("=== SentinelaLog ===")
-        print(f"Logado como: {usuario_logado[1]} ({usuario_logado[2]})")
-        print("1. Gerenciar usuários")
-        print("2. Registrar acesso")
-        print("3. Consultar acessos")
-        print("4. Consultar log de auditoria")
-        # Próximas opções (entregas futuras): máquinas compartilhadas,
-        # relatório de segurança, funcionalidade extra e módulo de IA.
-        print("0. Sair")
-        opcao = input("Escolha: ").strip()
-
-        if opcao == "1":
-            menu_usuarios()
-            continue
-        elif opcao == "2":
-            registrar_acesso()
-        elif opcao == "3":
-            consultar_acessos()
-        elif opcao == "4":
-            consultar_log()
-        elif opcao == "0":
-            print("Encerrando o SentinelaLog.")
-            break
-        else:
-            print("Opção inválida.")
-        pausar()
-
-
-# ---------------------------------------------------------------
-# Início do programa
-# ---------------------------------------------------------------
-if __name__ == "__main__":
-    criar_bloqueados_se_nao_existir()
-    if not admin_com_senha():
-        configurar_primeiro_admin()
-    if fazer_login():
-        menu_principal()
