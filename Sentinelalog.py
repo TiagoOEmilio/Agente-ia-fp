@@ -11,7 +11,7 @@ import secrets
 # ---------------------------------------------------------------
 # Constantes (nomes dos arquivos e configurações)
 # ---------------------------------------------------------------
-ARQ_USUARIOS = "usuarios.csv"      # matricula;nome;perfil;hora_inicio;hora_fim;observacoes e senha_hash;senha_salt
+ARQ_USUARIOS = "usuarios.csv"      # matricula;nome;perfil;hora_inicio;hora_fim;observacoes;senha (salt$hash)
 ARQ_ACESSOS = "acessos.csv"        # matricula;data_hora;maquina;resultado;classificacao;motivos
 ARQ_LOG = "auditoria.csv"          # data_hora;operacao;matricula_afetada
 ARQ_BLOQUEADOS = "bloqueados.txt"  # uma máquina bloqueada por linha
@@ -164,7 +164,7 @@ def ler_senha(mensagem):
         else:
             return senha
 
-#Autenticação e permissoões
+# Autenticação e permissões
 def gerar_hash(senha, salt=None):
     """Devolve 'salt$hash'. A senha nunca é guardada em texto puro."""
     if salt is None:
@@ -378,7 +378,7 @@ def excluir_usuario():
 
 # ---------------------------------------------------------------
 # TÓPICO 2 - Análise de risco
-# ---------------------------------------------------------------=
+# ---------------------------------------------------------------
 def classificar_acesso(usuario, maquina, resultado, data_hora):
     """
     Avalia o acesso e devolve (nivel, motivos).
