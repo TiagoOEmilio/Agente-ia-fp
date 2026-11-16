@@ -9,6 +9,7 @@ from funcoes import (
     admin_com_senha,
     configurar_primeiro_admin,
     fazer_login,
+    logout,
     e_admin,
     cadastrar_usuario,
     listar_usuarios,
