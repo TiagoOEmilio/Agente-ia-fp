@@ -9,7 +9,7 @@ from funcoes import (
     admin_com_senha,
     configurar_primeiro_admin,
     fazer_login,
-    logout,
+    fazer_logout,
     e_admin,
     cadastrar_usuario,
     listar_usuarios,
@@ -65,6 +65,7 @@ def menu_principal():
         print("2. Registrar acesso")
         print("3. Consultar acessos")
         print("4. Consultar log de auditoria")
+        print("5. Trocar de usuário (logout)")
         # Próximas opções (entregas futuras): máquinas compartilhadas,
         # relatório de segurança, funcionalidade extra e módulo de IA.
         print("0. Sair")
@@ -79,9 +80,12 @@ def menu_principal():
             consultar_acessos()
         elif opcao == "4":
             consultar_log()
+        elif opcao == "5":
+            fazer_logout()
+            return True
         elif opcao == "0":
             print("Encerrando o SentinelaLog.")
-            break
+            return False
         else:
             print("Opção inválida.")
         pausar()
@@ -91,5 +95,6 @@ if __name__ == "__main__":
     criar_bloqueados_se_nao_existir()
     if not admin_com_senha():
         configurar_primeiro_admin()
-    if fazer_login():
-        menu_principal()
+    while fazer_login():
+        if not menu_principal():
+            break

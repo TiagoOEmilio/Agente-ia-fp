@@ -246,6 +246,14 @@ def fazer_login():
     print("Número máximo de tentativas atingido.")
     return False
 
+def fazer_logout():
+    """Encerra a sessão do usuário logado (sem fechar o programa), para trocar de conta."""
+    global usuario_logado
+    registrar_log("LOGOUT", usuario_logado[0])
+    usuario_logado = None
+    limpar_tela()  # não deixa a tela do usuário anterior visível
+    print("Sessão encerrada. Faça login com outra conta.")
+
 # Usuários
 
 def mascarar_matricula(matricula):
