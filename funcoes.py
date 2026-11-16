@@ -6,7 +6,7 @@ import secrets
 
 # Constantes (nomes dos arquivos e configurações)
 
-ARQ_USUARIOS = "usuarios.csv"      # matricula;nome;perfil;hora_inicio;hora_fim;observacoes;senha (salt$hash)
+ARQ_USUARIOS = "usuarios.csv"      # matricula;nome;perfil;hora_inicio;hora_fim;observacoes;senha (salt$hash);trocar_senha
 ARQ_ACESSOS = "acessos.csv"        # matricula;data_hora;maquina;resultado;classificacao;motivos
 ARQ_LOG = "auditoria.csv"          # data_hora;operacao;matricula_afetada
 ARQ_BLOQUEADOS = "bloqueados.txt"  # uma máquina bloqueada por linha
@@ -14,7 +14,7 @@ ARQ_BLOQUEADOS = "bloqueados.txt"  # uma máquina bloqueada por linha
 SEP = ";"                          # separador dos campos nos arquivos
 PERFIS = ["estudante", "professor", "administrador"]
 PERFIL_ADMIN = "administrador"      # perfil do adm
-CAMPOS_USUARIO = 7                  # qnt de campos em cada linha do usuarios.csv
+CAMPOS_USUARIO = 8                  # qnt de campos em cada linha do usuarios.csv
 usuario_logado = None               # variável global para armazenar o usuário logado
 
 # Funções de arquivo (usadas por tudo no programa)
@@ -163,21 +163,25 @@ def gerar_hash(senha, salt=None):
         salt = secrets.token_hex(16)
     h = hashlib.pbkdf2_hmac("sha256", senha.encode("utf-8"), bytes.fromhex(salt), 200_000)
     return f"{salt}${h.hex()}"
+
 def verificar_senha(senha, armazenado):
     """Confere a senha digitada com o 'salt$hash' guardado no arquivo."""
     if "$" not in armazenado:
         return False  # usuário antigo, ainda sem senha definida
     salt = armazenado.split("$", 1)[0]
     return secrets.compare_digest(gerar_hash(senha, salt), armazenado)
+
 def e_admin():
     """Devolve True se o usuário logado tem o perfil de administrador."""
     return usuario_logado is not None and usuario_logado[2] == PERFIL_ADMIN
+
 def exigir_admin():
     """Barreira de segurança: usada no início de toda operação de escrita em usuários."""
     if e_admin():
         return True
     print("Acesso negado: apenas o administrador pode realizar esta operação.")
     return False
+
 def admin_com_senha():
     """Devolve True se já existe algum administrador com senha cadastrada."""
     return any(u[2] == PERFIL_ADMIN and u[6] != "" for u in carregar_usuarios())
@@ -197,9 +201,32 @@ def configurar_primeiro_admin():
     nome = ler_texto("Nome: ")
     senha = ler_senha("Senha: ")
     adicionar_linha(ARQ_USUARIOS,
-                    [matricula, nome, PERFIL_ADMIN, "0", "24", "", gerar_hash(senha)])
+                    [matricula, nome, PERFIL_ADMIN, "0", "24", "", gerar_hash(senha), "0"])
     registrar_log("CADASTRAR_ADMIN_INICIAL", matricula)
     print("primeiro Adm criado")
+
+def trocar_senha_obrigatoria():
+    """Troca de senha obrigatória: usada quando a senha atual foi definida pelo administrador."""
+    global usuario_logado
+    print("\n=== TROCA DE SENHA OBRIGATÓRIA ===")
+    print("Sua senha atual foi definida pelo administrador. Crie uma nova senha para continuar.")
+    while True:
+        nova = ler_senha("Nova senha: ")
+        if verificar_senha(nova, usuario_logado[6]):
+            print("A nova senha precisa ser diferente da senha atual.")
+        else:
+            break
+    usuarios = carregar_usuarios()
+    for u in usuarios:
+        if u[0] == usuario_logado[0]:
+            u[6] = gerar_hash(nova)
+            u[7] = "0"
+            usuario_logado = u
+            break
+    salvar_linhas(ARQ_USUARIOS, usuarios)
+    registrar_log("TROCAR_SENHA", usuario_logado[0])
+    print("Senha alterada com sucesso!")
+
 def fazer_login():
     """Pede matrícula e senha (3 tentativas). Devolve True se o login der certo."""
     global usuario_logado
@@ -211,6 +238,8 @@ def fazer_login():
         if usuario is not None and verificar_senha(senha, usuario[6]):
             usuario_logado = usuario
             registrar_log("LOGIN", matricula)
+            if usuario[7] == "1":
+               trocar_senha_obrigatoria() 
             return True
         print("Matrícula ou senha incorretos.")
         registrar_log("LOGIN_FALHA", matricula)
@@ -263,7 +292,7 @@ def cadastrar_usuario():
     observacoes = ler_texto("Observações (opcional): ", obrigatorio=False)
     senha = ler_senha("Senha inicial do usuário: ")
     adicionar_linha(ARQ_USUARIOS,
-                    [matricula, nome, perfil, str(hora_inicio), str(hora_fim), observacoes, gerar_hash(senha)])
+                    [matricula, nome, perfil, str(hora_inicio), str(hora_fim), observacoes, gerar_hash(senha), "1"])
     registrar_log("CADASTRAR_USUARIO", matricula)
     print("Usuário cadastrado com sucesso!")
 
@@ -329,7 +358,8 @@ def editar_usuario():
                     u[3], u[4] = str(inicio), str(fim)
             if input("Redefinir senha? (s/n): ").strip().lower() == "s":
                 u[6] = gerar_hash(ler_senha("Nova senha: "))
-            if novo_nome != "":
+                # se o adm redefiniu a senha de outro usuario, ele precisa trocar no proximo loging
+                u[7] = "0" if u[0] == usuario_logado[0] else "1" 
                 u[1] = novo_nome
             if novo_obs != "":
                 u[5] = novo_obs
