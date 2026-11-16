@@ -5,7 +5,6 @@
 
 import funcoes
 from funcoes import (
-    criar_bloqueados_se_nao_existir,
     admin_com_senha,
     configurar_primeiro_admin,
     fazer_login,
@@ -16,6 +15,7 @@ from funcoes import (
     editar_usuario,
     excluir_usuario,
     revelar_matricula,
+    bloquear_maquina,
     registrar_acesso,
     consultar_acessos,
     consultar_log,
@@ -66,6 +66,7 @@ def menu_principal():
         print("3. Consultar acessos")
         print("4. Consultar log de auditoria")
         print("5. Trocar de usuário (logout)")
+        print("6. Bloquear máquina")
         # Próximas opções (entregas futuras): máquinas compartilhadas,
         # relatório de segurança, funcionalidade extra e módulo de IA.
         print("0. Sair")
@@ -83,6 +84,8 @@ def menu_principal():
         elif opcao == "5":
             fazer_logout()
             return True
+        elif opcao == "6":
+            bloquear_maquina() # apenas adm 
         elif opcao == "0":
             print("Encerrando o SentinelaLog.")
             return False
@@ -92,7 +95,6 @@ def menu_principal():
 # Início do programa
 
 if __name__ == "__main__":
-    criar_bloqueados_se_nao_existir()
     if not admin_com_senha():
         configurar_primeiro_admin()
     while fazer_login():

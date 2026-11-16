@@ -61,17 +61,6 @@ def carregar_bloqueadas():
         print(f"Erro ao ler {ARQ_BLOQUEADOS}: {erro}")
         return []
 
-
-def criar_bloqueados_se_nao_existir():
-    """Cria um bloqueados.txt de exemplo (com máquinas fictícias) na primeira execução."""
-    if not os.path.exists(ARQ_BLOQUEADOS):
-        try:
-            with open(ARQ_BLOQUEADOS, "w", encoding="utf-8") as f:
-                f.write("PC-13\nPC-99\n")
-        except OSError as erro:
-            print(f"Não foi possível criar {ARQ_BLOQUEADOS}: {erro}")
-
-
 # Auditoria (log)
 
 def registrar_log(operacao, matricula_afetada="-"):
@@ -89,7 +78,6 @@ def consultar_log():
         return
     for campos in linhas:
         print(f"{campos[0]} | {campos[1]} | usuário afetado: {campos[2]}")
-
 
 # Funções de entrada (validam o que o usuário digita)
 
@@ -157,6 +145,7 @@ def ler_senha(mensagem):
             return senha
 
 # Autenticação e permissões
+
 def gerar_hash(senha, salt=None):
     """Devolve 'salt$hash'. A senha nunca é guardada em texto puro."""
     if salt is None:
@@ -231,6 +220,7 @@ def fazer_login():
     """Pede matrícula e senha (3 tentativas). Devolve True se o login der certo."""
     global usuario_logado
     print("\n=== LOGIN ===")
+    maquina = ler_texto("qual computator voce esta usando?(ex.: PC-01): ").upper()
     for _ in range(3):
         matricula = ler_texto("Matrícula: ")
         senha = getpass.getpass("Senha: ")
@@ -238,6 +228,10 @@ def fazer_login():
         if usuario is not None and verificar_senha(senha, usuario[6]):
             usuario_logado = usuario
             registrar_log("LOGIN", matricula)
+            if maquina in carregar_bloqueadas():
+                print(f"\n AVISO: a máquina {maquina} foi bloqueada por um admin")
+                registrar_log(f"Login_maquina_bloqueada({maquina})", matricula)
+                pausar()
             if usuario[7] == "1":
                trocar_senha_obrigatoria() 
             return True
@@ -406,7 +400,6 @@ def excluir_usuario():
     print("Usuário não encontrado.")
 
 
-
 # Análise de risco
 
 def classificar_acesso(usuario, maquina, resultado, data_hora):
@@ -490,3 +483,28 @@ def consultar_acessos():
     for a in acessos:
         print(f"{a[1]} | {mascarar_matricula(a[0])} | {a[2]} | {a[3]} | "
               f"{a[4].upper()} | motivo: {a[5]}")
+
+# Maquinas bloqueadas
+
+def bloquear_maquina():
+    """Adiciona uma máquina à lista de bloqueio (somente administrador)."""
+    if not exigir_admin():
+        return
+    print("\n--- BLOQUEAR MÁQUINA ---")
+    maquina = ler_texto("Máquina a bloquear (ex.: PC-01): ").upper()
+    if maquina in carregar_bloqueadas():
+        print(f"A máquina {maquina} já está na lista de bloqueio.")
+        return
+    try:
+        # "a+" só acrescenta no fim (nunca apaga o que já existe)
+        with open(ARQ_BLOQUEADOS, "a+", encoding="utf-8") as f:
+            f.seek(0)
+            conteudo = f.read()
+            if conteudo and not conteudo.endswith("\n"):
+                f.write("\n")  # garante que a máquina nova fique em linha própria
+            f.write(maquina + "\n")
+    except OSError as erro:
+        print(f"Não foi possível gravar em {ARQ_BLOQUEADOS}: {erro}")
+        return
+    registrar_log(f"BLOQUEAR_MAQUINA({maquina})")
+    print(f"Máquina {maquina} adicionada à lista de bloqueio.")
