@@ -218,3 +218,10 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# SentinelaLog - arquivos de dados gerados ao rodar o programa
+# (o usuarios.csv guarda os hashes das senhas e não deve ir para o repositório)
+usuarios.csv
+acessos.csv
+auditoria.csv
+bloqueados.txt
