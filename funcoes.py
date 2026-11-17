@@ -508,3 +508,112 @@ def bloquear_maquina():
         return
     registrar_log(f"BLOQUEAR_MAQUINA({maquina})")
     print(f"Máquina {maquina} adicionada à lista de bloqueio.")
+
+def relatorio_seguranca():
+    """Gera um resumo estatístico dos acessos ao laboratório."""
+
+    acessos = carregar_linhas(ARQ_ACESSOS)
+
+    print("\n========== RELATÓRIO DE SEGURANÇA ==========")
+
+    if not acessos:
+        print("Nenhum acesso foi registrado.")
+        return
+
+    total = len(acessos)
+    sucessos = 0
+    falhas = 0
+
+    classificacoes = {
+        "normal": 0,
+        "suspeito": 0,
+        "critico": 0
+    }
+
+    falhas_por_usuario = {}
+    acessos_por_hora = {}
+
+    for acesso in acessos:
+
+        matricula = acesso[0]
+        data_hora = acesso[1]
+        resultado = acesso[3]
+        classificacao = acesso[4].lower()
+
+        # Contabiliza sucessos e falhas
+        if resultado == "sucesso":
+            sucessos += 1
+        elif resultado == "falha":
+            falhas += 1
+
+            falhas_por_usuario[matricula] = (
+                falhas_por_usuario.get(matricula, 0) + 1
+            )
+
+        # Contabiliza classificações de risco
+        if classificacao in classificacoes:
+            classificacoes[classificacao] += 1
+
+        # Contabiliza acessos por horário
+        try:
+            hora = datetime.strptime(
+                data_hora, "%Y-%m-%d %H:%M"
+            ).hour
+
+            acessos_por_hora[hora] = (
+                acessos_por_hora.get(hora, 0) + 1
+            )
+
+        except ValueError:
+            print("Aviso: um registro possui data inválida.")
+
+    print(f"\nTotal de acessos: {total}")
+    print(f"Acessos bem-sucedidos: {sucessos}")
+    print(f"Acessos com falha: {falhas}")
+
+    print("\n--- CLASSIFICAÇÃO DE RISCO ---")
+    print(f"Normais: {classificacoes['normal']}")
+    print(f"Suspeitos: {classificacoes['suspeito']}")
+    print(f"Críticos: {classificacoes['critico']}")
+
+    print("\n--- USUÁRIOS COM MAIS FALHAS ---")
+
+    if falhas_por_usuario:
+        usuarios_ordenados = sorted(
+            falhas_por_usuario.items(),
+            key=lambda item: item[1],
+            reverse=True
+        )
+
+        for matricula, quantidade in usuarios_ordenados:
+            usuario = buscar_usuario(matricula)
+
+            if usuario:
+                nome = usuario[1]
+            else:
+                nome = "Usuário não encontrado"
+
+            print(
+                f"{nome} ({mascarar_matricula(matricula)}): "
+                f"{quantidade} falha(s)"
+            )
+    else:
+        print("Nenhuma falha registrada.")
+
+    print("\n--- MOVIMENTO POR HORÁRIO ---")
+
+    if acessos_por_hora:
+        horarios_ordenados = sorted(
+            acessos_por_hora.items(),
+            key=lambda item: item[1],
+            reverse=True
+        )
+
+        for hora, quantidade in horarios_ordenados:
+            print(f"{hora:02d}h: {quantidade} acesso(s)")
+    else:
+        print("Não existem horários válidos registrados.")
+
+    registrar_log("CONSULTAR_RELATORIO_SEGURANCA")
+
+    print("\n============================================")
