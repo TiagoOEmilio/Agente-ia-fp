@@ -3,10 +3,10 @@ Projeto de agente de ia de FP
 alunos:
 Francisco Bispo
 Fernando Furlan
-mateus dias
-tiago 
+Mateus Dias
+Tiago Oliveira
 Iago Xavier
-Leal
+Enzo Leal
 
 ## Sobre o projeto
 
