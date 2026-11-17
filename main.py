@@ -4,38 +4,20 @@
 
 
 import funcoes
-from funcoes import (
-    admin_com_senha,
-    configurar_primeiro_admin,
-    fazer_login,
-    fazer_logout,
-    e_admin,
-    cadastrar_usuario,
-    listar_usuarios,
-    editar_usuario,
-    excluir_usuario,
-    revelar_matricula,
-    bloquear_maquina,
-    registrar_acesso,
-    consultar_acessos,
-    consultar_log,
-    limpar_tela,
-    pausar,
-)
 
 # Menus
 
 def menu_usuarios():
     """Menu de usuários: o administrador tem acesso completo e os demais só visualizam."""
     # Administrador: acesso completo. Demais perfis: somente visualização.
-    if e_admin():
-        opcoes = [("Cadastrar", cadastrar_usuario),
-                  ("Listar", listar_usuarios),
-                  ("Editar", editar_usuario),
-                  ("Excluir", excluir_usuario),
-                  ("Revelar matrícula", revelar_matricula)]
+    if funcoes.e_admin():
+        opcoes = [("Cadastrar", funcoes.cadastrar_usuario),
+                  ("Listar", funcoes.listar_usuarios),
+                  ("Editar", funcoes.editar_usuario),
+                  ("Excluir", funcoes.excluir_usuario),
+                  ("Revelar matrícula", funcoes.revelar_matricula)]
     else:
-        opcoes = [("Listar", listar_usuarios)]
+        opcoes = [("Listar", funcoes.listar_usuarios)]
 
     while True:
         print("\n=== USUÁRIOS ===")
@@ -50,13 +32,13 @@ def menu_usuarios():
             opcoes[int(opcao) - 1][1]()
         else:
             print("Opção inválida.")
-        pausar()
+        funcoes.pausar()
 
 
 def menu_principal():
     """Menu principal do programa, mostrado depois do login."""
     while True:
-        limpar_tela()
+        funcoes.limpar_tela()
         print("=== SentinelaLog ===")
         # usuario_logado é lido direto do módulo funcoes: ele é preenchido
         # pelo fazer_login() e, se fosse importado com "from", ficaria None aqui.
@@ -69,6 +51,7 @@ def menu_principal():
         print("6. Bloquear máquina")
         # Próximas opções (entregas futuras): máquinas compartilhadas,
         # relatório de segurança, funcionalidade extra e módulo de IA.
+        print("7. Relatório de segurança")
         print("0. Sair")
         opcao = input("Escolha: ").strip()
 
@@ -76,27 +59,29 @@ def menu_principal():
             menu_usuarios()
             continue
         elif opcao == "2":
-            registrar_acesso()
+            funcoes.registrar_acesso()
         elif opcao == "3":
-            consultar_acessos()
+            funcoes.consultar_acessos()
         elif opcao == "4":
-            consultar_log()
+            funcoes.consultar_log()
         elif opcao == "5":
-            fazer_logout()
+            funcoes.fazer_logout()
             return True
         elif opcao == "6":
-            bloquear_maquina() # apenas adm 
+            funcoes.bloquear_maquina() # apenas adm 
+        elif opcao == "7":
+            funcoes.relatorio_seguranca()
         elif opcao == "0":
             print("Encerrando o SentinelaLog.")
             return False
         else:
             print("Opção inválida.")
-        pausar()
+        funcoes.pausar()
 # Início do programa
 
 if __name__ == "__main__":
-    if not admin_com_senha():
-        configurar_primeiro_admin()
-    while fazer_login():
+    if not funcoes.admin_com_senha():
+        funcoes.configurar_primeiro_admin()
+    while funcoes.fazer_login():
         if not menu_principal():
             break
