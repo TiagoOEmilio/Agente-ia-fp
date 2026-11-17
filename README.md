@@ -4,7 +4,7 @@ alunos:
 Francisco Bispo
 Fernando Furlan
 Mateus Dias
-Tiago Oliveira
+Tiago Oliveira Emilio 
 Iago Xavier
 Enzo Leal
 
