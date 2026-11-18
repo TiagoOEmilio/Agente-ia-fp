@@ -52,6 +52,7 @@ def menu_principal():
         # Próximas opções (entregas futuras): máquinas compartilhadas,
         # relatório de segurança, funcionalidade extra e módulo de IA.
         print("7. Relatório de segurança")
+        print("8. Desbloquear maquina")
         print("0. Sair")
         opcao = input("Escolha: ").strip()
 
@@ -71,6 +72,8 @@ def menu_principal():
             funcoes.bloquear_maquina() # apenas adm 
         elif opcao == "7":
             funcoes.relatorio_seguranca()
+        elif opcao == "8":
+            funcoes.desbloquear_maquina() # apenas adm
         elif opcao == "0":
             print("Encerrando o SentinelaLog.")
             return False

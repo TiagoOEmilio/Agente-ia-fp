@@ -8,7 +8,7 @@ import secrets
 
 ARQ_USUARIOS = "usuarios.csv"      # matricula;nome;perfil;hora_inicio;hora_fim;observacoes;senha (salt$hash);trocar_senha
 ARQ_ACESSOS = "acessos.csv"        # matricula;data_hora;maquina;resultado;classificacao;motivos
-ARQ_LOG = "auditoria.csv"          # data_hora;operacao;matricula_afetada
+ARQ_LOG = "auditoria.csv"          # data_hora;operacao;matricula_afetada;autor
 ARQ_BLOQUEADOS = "bloqueados.txt"  # uma máquina bloqueada por linha
 
 SEP = ";"                          # separador dos campos nos arquivos
@@ -63,10 +63,12 @@ def carregar_bloqueadas():
 
 # Auditoria (log)
 
-def registrar_log(operacao, matricula_afetada="-"):
-    """Grava no log: data/hora, qual operação e qual usuário foi afetado."""
+def registrar_log(operacao, matricula_afetada="-", autor=None):
+    """Grava no log: data/hora, qual operação e qual usuário foi afetado e autor da acao."""
+    if autor is None:
+        autor = usuario_logado[0] if usuario_logado is not None else "-"
     agora = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    adicionar_linha(ARQ_LOG, [agora, operacao, matricula_afetada])
+    adicionar_linha(ARQ_LOG, [agora, operacao, matricula_afetada, autor])
 
 
 def consultar_log():
@@ -77,7 +79,8 @@ def consultar_log():
         print("O log está vazio.")
         return
     for campos in linhas:
-        print(f"{campos[0]} | {campos[1]} | usuário afetado: {campos[2]}")
+        autor = campos[3] if len(campos) > 3 else "(nao registrado)"
+        print(f"{campos[0]} | {campos[1]} | usuário afetado: {campos[2]} | autor: {autor}")
 
 # Funções de entrada (validam o que o usuário digita)
 
@@ -191,7 +194,7 @@ def configurar_primeiro_admin():
     senha = ler_senha("Senha: ")
     adicionar_linha(ARQ_USUARIOS,
                     [matricula, nome, PERFIL_ADMIN, "0", "24", "", gerar_hash(senha), "0"])
-    registrar_log("CADASTRAR_ADMIN_INICIAL", matricula)
+    registrar_log("CADASTRAR_ADMIN_INICIAL", matricula, autor="SISTEMA")
     print("primeiro Adm criado")
 
 def trocar_senha_obrigatoria():
@@ -403,8 +406,7 @@ def excluir_usuario():
                 print("Usuário excluído.")
             else:
                 print("Exclusão cancelada.")
-        return
-
+            return
     print("Usuário não encontrado.")
 
 
@@ -492,7 +494,6 @@ def consultar_acessos():
         print(f"{a[1]} | {mascarar_matricula(a[0])} | {a[2]} | {a[3]} | "
               f"{a[4].upper()} | motivo: {a[5]}")
 
-# Maquinas bloqueadas
 
 def bloquear_maquina():
     """Adiciona uma máquina à lista de bloqueio (somente administrador)."""
@@ -504,18 +505,49 @@ def bloquear_maquina():
         print(f"A máquina {maquina} já está na lista de bloqueio.")
         return
     try:
-        # "a+" só acrescenta no fim (nunca apaga o que já existe)
         with open(ARQ_BLOQUEADOS, "a+", encoding="utf-8") as f:
             f.seek(0)
             conteudo = f.read()
             if conteudo and not conteudo.endswith("\n"):
-                f.write("\n")  # garante que a máquina nova fique em linha própria
+                f.write("\n")  
             f.write(maquina + "\n")
     except OSError as erro:
         print(f"Não foi possível gravar em {ARQ_BLOQUEADOS}: {erro}")
         return
     registrar_log(f"BLOQUEAR_MAQUINA({maquina})")
     print(f"Máquina {maquina} adicionada à lista de bloqueio.")
+
+def desbloquear_maquina():
+    """Remove uma máquina da lista de bloqueio (somente administrador)."""
+    if not exigir_admin():
+        return
+    print("\n--- DESBLOQUEAR MÁQUINA ---")
+    bloqueadas = list(dict.fromkeys(carregar_bloqueadas()))
+    if not bloqueadas:
+        print("Nenhuma máquina está bloqueada.")
+        return
+
+    for posicao, nome in enumerate(bloqueadas, start=1):
+        print(f"{posicao} - {nome}")
+    print("0 - Cancelar")
+    escolha = ler_inteiro("Número da máquina a desbloquear: ", 0, len(bloqueadas))
+    if escolha == 0:
+        print("Operação cancelada.")
+        return
+
+    maquina = bloqueadas[escolha - 1]
+    restantes = [nome for nome in bloqueadas if nome != maquina]
+    try:
+        temporario = ARQ_BLOQUEADOS + ".tmp"
+        with open(temporario, "w", encoding="utf-8") as f:
+            for nome in restantes:
+                f.write(nome + "\n")
+        os.replace(temporario, ARQ_BLOQUEADOS)
+    except OSError as erro:
+        print(f"Não foi possível atualizar {ARQ_BLOQUEADOS}: {erro}")
+        return
+    registrar_log(f"DESBLOQUEAR_MAQUINA({maquina})")
+    print(f"Máquina {maquina} desbloqueada.") 
 
 def relatorio_seguranca():
     """Gera um resumo estatístico dos acessos ao laboratório."""
