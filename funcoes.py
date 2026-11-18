@@ -217,28 +217,35 @@ def trocar_senha_obrigatoria():
     print("Senha alterada com sucesso!")
 
 def fazer_login():
-    """Pede matrícula e senha (3 tentativas). Devolve True se o login der certo."""
+    """Pede máquina, matrícula e senha (3 tentativas). Devolve True se o login der certo.
+    Máquina bloqueada: ninguém entra (nem o admin) e a tentativa é registrada no log
+    junto com a matrícula digitada. O programa pede outra máquina em vez de encerrar.
+    Devolve False se estourar as tentativas ou se o usuário digitar 0."""
     global usuario_logado
     print("\n=== LOGIN ===")
-    maquina = ler_texto("qual computator voce esta usando?(ex.: PC-01): ").upper()
-    for _ in range(3):
-        matricula = ler_texto("Matrícula: ")
-        senha = getpass.getpass("Senha: ")
-        usuario = buscar_usuario(matricula)
-        if usuario is not None and verificar_senha(senha, usuario[6]):
-            usuario_logado = usuario
-            registrar_log("LOGIN", matricula)
+    while True:  
+        maquina = ler_texto("Qual computador você está usando? (ex.: PC-01, ou 0 para sair): ").upper()
+        if maquina == "0":
+            return False
+        for _ in range(3):
+            matricula = ler_texto("Matrícula: ")
             if maquina in carregar_bloqueadas():
-                print(f"\n AVISO: a máquina {maquina} foi bloqueada por um admin")
-                registrar_log(f"Login_maquina_bloqueada({maquina})", matricula)
-                pausar()
-            if usuario[7] == "1":
-               trocar_senha_obrigatoria() 
-            return True
-        print("Matrícula ou senha incorretos.")
-        registrar_log("LOGIN_FALHA", matricula)
-    print("Número máximo de tentativas atingido.")
-    return False
+                print(f"\nAcesso negado: a máquina {maquina} está bloqueada. Use outra máquina.")
+                registrar_log(f"LOGIN_NEGADO_MAQUINA_BLOQUEADA({maquina})", matricula)
+                break  
+            senha = getpass.getpass("Senha: ")
+            usuario = buscar_usuario(matricula)
+            if usuario is not None and verificar_senha(senha, usuario[6]):
+                usuario_logado = usuario
+                registrar_log("LOGIN", matricula)
+                if usuario[7] == "1":
+                    trocar_senha_obrigatoria()
+                return True
+            print("Matrícula ou senha incorretos.")
+            registrar_log("LOGIN_FALHA", matricula)
+        else:
+            print("Número máximo de tentativas atingido.")
+            return False
 
 def fazer_logout():
     """Encerra a sessão do usuário logado (sem fechar o programa), para trocar de conta."""
