@@ -367,7 +367,7 @@ def editar_usuario():
                     u[3], u[4] = str(inicio), str(fim)
             if input("Redefinir senha? (s/n): ").strip().lower() == "s":
                 u[6] = gerar_hash(ler_senha("Nova senha: "))
-                # se o adm redefiniu a senha de outro usuario, ele precisa trocar no proximo loging
+                # se o adm redefiniu a senha de outro usuario, ele precisa trocar no proximo login
                 u[7] = "0" if u[0] == usuario_logado[0] else "1" 
             if novo_nome != "":   
                 u[1] = novo_nome

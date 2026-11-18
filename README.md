@@ -25,7 +25,6 @@ O sistema permite cadastrar usuários com diferentes níveis de permissão, acom
 - Bibliotecas nativas:
   - `os`
   - `datetime`
-  - `random`
   - `hashlib`
   - `secrets`
   - `getpass`
