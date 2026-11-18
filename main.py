@@ -36,51 +36,45 @@ def menu_usuarios():
 
 
 def menu_principal():
-    """Menu principal do programa, mostrado depois do login."""
+    """Menu principal do programa, mostrado depois do login.
+    As opções de administrador só aparecem para o administrador."""
     while True:
+        opcoes = [("Gerenciar usuários", menu_usuarios),
+                  ("Registrar acesso", funcoes.registrar_acesso),
+                  ("Consultar acessos", funcoes.consultar_acessos),
+                  ("Consultar log de auditoria", funcoes.consultar_log),
+                  # Próximas opções (entregas futuras): máquinas compartilhadas,
+                  # funcionalidade extra e módulo de IA.
+                  ("Relatório de segurança", funcoes.relatorio_seguranca)]
+        if funcoes.e_admin():
+            opcoes.append(("Bloquear máquina", funcoes.bloquear_maquina))
+            opcoes.append(("Desbloquear máquina", funcoes.desbloquear_maquina))
+        opcoes.append(("Trocar de usuário (logout)", funcoes.fazer_logout))
+
         funcoes.limpar_tela()
         print("=== SentinelaLog ===")
         # usuario_logado é lido direto do módulo funcoes: ele é preenchido
         # pelo fazer_login() e, se fosse importado com "from", ficaria None aqui.
         print(f"Logado como: {funcoes.usuario_logado[1]} ({funcoes.usuario_logado[2]})")
-        print("1. Gerenciar usuários")
-        print("2. Registrar acesso")
-        print("3. Consultar acessos")
-        print("4. Consultar log de auditoria")
-        print("5. Trocar de usuário (logout)")
-        print("6. Bloquear máquina")
-        # Próximas opções (entregas futuras): máquinas compartilhadas,
-        # relatório de segurança, funcionalidade extra e módulo de IA.
-        print("7. Relatório de segurança")
-        print("8. Desbloquear maquina")
+        for numero, (nome, _) in enumerate(opcoes, start=1):
+            print(f"{numero}. {nome}")
         print("0. Sair")
         opcao = input("Escolha: ").strip()
 
-        if opcao == "1":
-            menu_usuarios()
-            continue
-        elif opcao == "2":
-            funcoes.registrar_acesso()
-        elif opcao == "3":
-            funcoes.consultar_acessos()
-        elif opcao == "4":
-            funcoes.consultar_log()
-        elif opcao == "5":
-            funcoes.fazer_logout()
-            return True
-        elif opcao == "6":
-            funcoes.bloquear_maquina() # apenas adm 
-        elif opcao == "7":
-            funcoes.relatorio_seguranca()
-        elif opcao == "8":
-            funcoes.desbloquear_maquina() # apenas adm
-        elif opcao == "0":
+        if opcao == "0":
             print("Encerrando o SentinelaLog.")
             return False
+        elif opcao.isdigit() and 1 <= int(opcao) <= len(opcoes):
+            acao = opcoes[int(opcao) - 1][1]
+            if acao == funcoes.fazer_logout:
+                funcoes.fazer_logout()
+                return True  # volta para a tela de login
+            acao()
+            if acao == menu_usuarios:
+                continue  # o submenu já faz as suas próprias pausas
         else:
             print("Opção inválida.")
         funcoes.pausar()
-# Início do programa
 
 if __name__ == "__main__":
     if not funcoes.admin_com_senha():

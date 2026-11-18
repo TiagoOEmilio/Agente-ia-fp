@@ -4,6 +4,7 @@ import getpass
 import hashlib
 import secrets
 
+
 # Constantes (nomes dos arquivos e configurações)
 
 ARQ_USUARIOS = "usuarios.csv"      # matricula;nome;perfil;hora_inicio;hora_fim;observacoes;senha (salt$hash);trocar_senha
