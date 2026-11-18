@@ -68,10 +68,9 @@ def menu_principal():
             acao = opcoes[int(opcao) - 1][1]
             if acao == funcoes.fazer_logout:
                 funcoes.fazer_logout()
-                return True  # volta para a tela de login
-            acao()
+                return True  
             if acao == menu_usuarios:
-                continue  # o submenu já faz as suas próprias pausas
+                continue  
         else:
             print("Opção inválida.")
         funcoes.pausar()

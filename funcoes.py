@@ -233,20 +233,23 @@ def fazer_login():
             return False
         for _ in range(3):
             matricula = ler_texto("Matrícula: ")
+            usuario = buscar_usuario(matricula)
             if maquina in carregar_bloqueadas():
                 print(f"\nAcesso negado: a máquina {maquina} está bloqueada. Use outra máquina.")
                 registrar_log(f"LOGIN_NEGADO_MAQUINA_BLOQUEADA({maquina})", matricula)
+                registrar_acesso_login(usuario, maquina, "falha")
                 break  
             senha = getpass.getpass("Senha: ")
-            usuario = buscar_usuario(matricula)
             if usuario is not None and verificar_senha(senha, usuario[6]):
                 usuario_logado = usuario
                 registrar_log("LOGIN", matricula)
+                registrar_acesso_login(usuario, maquina, "sucesso")
                 if usuario[7] == "1":
                     trocar_senha_obrigatoria()
                 return True
             print("Matrícula ou senha incorretos.")
             registrar_log("LOGIN_FALHA", matricula)
+            registrar_acesso_login(usuario, maquina, "falha")
         else:
             print("Número máximo de tentativas atingido.")
             return False
@@ -453,6 +456,25 @@ def classificar_acesso(usuario, maquina, resultado, data_hora):
 
     return nivel, motivos
 
+def gravar_acesso(usuario, maquina, resultado, data_hora):
+    """Classifica o acesso e grava no acessos.csv. Devolve (nivel, motivos).
+    É usada tanto pelo registro manual quanto pelo login."""
+    nivel, motivos = classificar_acesso(usuario, maquina, resultado, data_hora)
+    adicionar_linha(ARQ_ACESSOS, [usuario[0], data_hora.strftime("%Y-%m-%d %H:%M"),
+                                  maquina, resultado, nivel, " | ".join(motivos)])
+    return nivel, motivos
+
+
+def registrar_acesso_login(usuario, maquina, resultado):
+    """Grava no acessos.csv uma tentativa de login real (com a data e hora de agora).
+    Matrícula que não existe não tem horário nem perfil para classificar: fica só no
+    log de auditoria. Um erro ao registrar nunca pode impedir o login."""
+    if usuario is None:
+        return
+    try:
+        gravar_acesso(usuario, maquina, resultado, datetime.now())
+    except (ValueError, IndexError):
+        print("Aviso: não foi possível registrar este acesso (dados do usuário incompletos).")
 
 def registrar_acesso():
     """Registra o acesso de um usuário a uma máquina e classifica o resultado."""
@@ -472,7 +494,12 @@ def registrar_acesso():
 
     if maquina in carregar_bloqueadas():
         print(f"\n*** AVISO: a máquina {maquina} está BLOQUEADA! ***")
+    registrar_log("registrar_acesso", matricula)
 
+    print(f"\nAcesso registrado. Classificação: {nivel.upper()}")
+    print("Por quê:")
+    for motivo in motivos:
+        print(f"  - {motivo}")
     texto_motivos = " | ".join(motivos)
     adicionar_linha(ARQ_ACESSOS, [matricula, data_hora.strftime("%Y-%m-%d %H:%M"),
                                   maquina, resultado, nivel, texto_motivos])
