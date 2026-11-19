@@ -290,7 +290,7 @@ def consultar_situacao_aluno():
 
     # Cada registro de notas.csv deve ter:
     # matrícula do aluno, professor, atividade, data, nota, peso.
-       registros = [
+    registros = [
         r for r in funcoes.carregar_linhas(funcoes.ARQ_NOTAS)
         if len(r) >= 7 and r[0] == matricula
     ]
