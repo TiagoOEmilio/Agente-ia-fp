@@ -4,7 +4,7 @@
 
 ## 📌 Sobre o projeto
 
-O **SentinelaLog** é um sistema de controle de acessos desenvolvido em Python, executado diretamente pelo terminal. Seu objetivo é gerenciar usuários, registrar movimentações e auxiliar no monitoramento da segurança de ambientes, como laboratórios de informática.
+O **SentinelaLog** é um sistema de controle de acessos desenvolvido em Python, executado diretamente pelo terminal. Seu objetivo é gerenciar usuários, registrar movimentações e auxiliar no monitoramento da segurança de ambientes, como laboratórios de informática. Tudo isso com a ajuda de uma IA integrada!
 
 O sistema permite cadastrar usuários com diferentes níveis de permissão, acompanhar tentativas de acesso e manter registros de auditoria para facilitar a identificação de atividades suspeitas.
 
