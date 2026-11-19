@@ -45,8 +45,15 @@ def menu_principal():
             opcoes.append(("Bloquear máquina", funcoes.bloquear_maquina))
             opcoes.append(("Desbloquear máquina", funcoes.desbloquear_maquina))
             opcoes.append(("Análise de segurança com IA", ia.analisar_com_ia))
+            opcoes.append(("ver solicitações de bloqueio", funcoes.consultar_solicitacoes_bloqueio))
         opcoes.append(("Trocar de usuário (logout)", funcoes.fazer_logout))
 
+        if funcoes.usuario_logado[2] == "professor":
+            opcoes.append(("Registrar nota por atividade", funcoes.registrar_nota_atividade))
+            opcoes.append(("Consultar boletim individual", funcoes.consultar_boletim_individual))
+            opcoes.append(("Solicitar bloqueio de máquina", funcoes.solicitar_bloqueio_maquina))
+            opcoes.append(("consultar situação de aluno com IA", ia.consultar_situacao_aluno))
+        
         funcoes.limpar_tela()
         print("=== SentinelaLog ===")
         # usuario_logado é lido direto do módulo funcoes: ele é preenchido

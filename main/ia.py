@@ -243,8 +243,12 @@ def analisar_com_ia():
         print("Chave da Groq não configurada. Defina GROQ_API_KEY (terminal ou arquivo .env).")
         return
 
-    print("Será enviado à Groq um resumo ANONIMIZADO dos acessos (sem nomes,")
-    print("matrículas ou senhas; os usuários viram USUARIO_1, USUARIO_2...).")
+    print("A Groq receberá um resumo dos registros para gerar a análise.")
+    print("Nomes e matrículas são substituídos por pseudônimos.")
+    print("O resumo inclui perfis, horários, identificadores de máquinas,")
+    print("resultados, classificações, motivos e estatísticas dos acessos.")
+    print("A pergunta que você digitar também será enviada à Groq.")
+    print("Esses dados podem ajudar a identificar pessoas ou rotinas.")
     if input("Continuar? (s/n): ").strip().lower() != "s":
         print("Operação cancelada.")
         return
@@ -259,3 +263,114 @@ def analisar_com_ia():
         return
     print("\n" + revelar_pseudonimos(texto, pseudonimos))
     print("\nAviso: texto gerado por IA. Confira os dados antes de tomar qualquer ação.")
+
+    PROMPT_SITUACAO_ALUNO = (
+    "Você ajuda professores a entender a situação acadêmica de um estudante. "
+    "Responda em português do Brasil, de forma clara e respeitosa.\n"
+    "Use somente os dados fornecidos. A média e a situação já foram calculadas "
+    "pelo programa: não refaça os cálculos nem altere a situação informada. "
+    "Não afirme que o estudante passou de ano definitivamente; explique que "
+    "a situação considera apenas as duas provas informadas. Não invente dados."
+)
+
+
+def consultar_situacao_aluno():
+    """Usa a IA para explicar a situação baseada nas notas das duas provas."""
+    if(funcoes.usuario_logado is None or funcoes.usuario_logado[2] != "professor"):
+        print("acesso negado: apenas para professores")
+        return
+
+    print("\n--- CONSULTAR SITUAÇÃO DO ALUNO COM IA ---")
+    matricula = funcoes.ler_texto("Matrícula do estudante: ")
+    aluno = funcoes.buscar_usuario(matricula)
+
+    if aluno is None or aluno[2] != "estudante":
+        print("Estudante não encontrado.")
+        return
+
+    # Cada registro de notas.csv deve ter:
+    # matrícula do aluno, professor, atividade, data, nota, peso.
+       registros = [
+        r for r in funcoes.carregar_linhas(funcoes.ARQ_NOTAS)
+        if len(r) >= 7 and r[0] == matricula
+    ]
+
+    if not registros:
+        print("Não há notas registradas para esse estudante.")
+        return
+
+    notas_por_categoria = {}
+    soma_ponderada = 0.0
+    soma_pesos = 0.0
+
+    for registro in registros:
+        categoria = registro[2]
+        observacao = registro[3]
+
+        try:
+            nota = float(registro[5].replace(",", "."))
+            peso = float(registro[6].replace(",", "."))
+        except ValueError:
+            continue
+
+        notas_por_categoria.setdefault(categoria, []).append(
+            (observacao, nota, peso)
+        )
+        soma_ponderada += nota * peso
+        soma_pesos += peso
+
+    if soma_pesos == 0:
+        print("Não há notas válidas para calcular a média.")
+        return
+
+    media = soma_ponderada / soma_pesos
+
+    if media >= 7:
+        situacao = "Aprovado pela média atual."
+    elif media >= 4:
+        situacao = "Está na final."
+    else:
+        situacao = "Reprovado, sem direito à final."
+
+    pergunta = input(
+        "O que deseja perguntar sobre essa situação? "
+        "(não inclua nome nem matrícula): "
+    ).strip()[:300]
+
+    detalhes = []
+    for categoria, itens in notas_por_categoria.items():
+        for observacao, nota, peso in itens:
+            detalhes.append(
+                f"{categoria} — {observacao}: nota {nota:.2f}, peso {peso:.2f}"
+            )
+
+    dados = (
+        "\n".join(detalhes)
+        + f"\nMédia ponderada atual: {media:.2f}"
+        + f"\nSituação calculada pelo programa: {situacao}"
+    )
+
+    mensagens = [
+        {"role": "system", "content": PROMPT_SITUACAO_ALUNO},
+        {
+            "role": "user",
+            "content": (
+                f"Pergunta do professor: {pergunta or 'Explique a situação do aluno.'}\n\n"
+                f"<dados>\n{dados}\n</dados>"
+            ),
+        },
+    ]
+
+    funcoes.registrar_log("CONSULTAR_SITUACAO_ALUNO_IA", matricula)
+    print("\nConsultando a IA, aguarde...")
+    resposta, erro = chamar_groq(mensagens)
+
+    if erro:
+        print(f"\nNão foi possível consultar a IA: {erro}")
+        return
+
+    print(f"\nMédia ponderada: {media:.2f}")
+    print(f"Situação: {situacao}")
+    print("\nExplicação da IA:")
+    print(resposta)
+    print("\nAviso: a análise considera as notas registradas.")

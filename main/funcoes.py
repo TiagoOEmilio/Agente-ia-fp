@@ -11,7 +11,8 @@ ARQ_USUARIOS = "usuarios.csv"      # matricula;nome;perfil;hora_inicio;hora_fim;
 ARQ_ACESSOS = "acessos.csv"        # matricula;data_hora;maquina;resultado;classificacao;motivos
 ARQ_LOG = "auditoria.csv"          # data_hora;operacao;matricula_afetada;autor
 ARQ_BLOQUEADOS = "bloqueados.txt"  # uma máquina bloqueada por linha
-
+ARQ_NOTAS = "notas.csv"
+ARQ_SOLICITACOES_BLOQUEIO = "solicitacoes_bloqueio.csv"  # matricula;maquina;data_hora;status            
 SEP = ";"                          # separador dos campos nos arquivos
 PERFIS = ["estudante", "professor", "administrador"]
 PERFIL_ADMIN = "administrador"      # perfil do adm
@@ -175,6 +176,17 @@ def exigir_admin():
     print("Acesso negado: apenas o administrador pode realizar esta operação.")
     return False
 
+def exigir_professor():
+    """Permite a operação a professores e administradores."""
+    if usuario_logado is not None and usuario_logado[2] in (
+        "professor",
+        PERFIL_ADMIN,
+    ):
+        return True
+
+    print("Acesso negado: apenas professores ou administradores podem realizar esta operação.")
+    return False
+
 def admin_com_senha():
     """Devolve True se já existe algum administrador com senha cadastrada."""
     return any(u[2] == PERFIL_ADMIN and u[6] != "" for u in carregar_usuarios())
@@ -263,6 +275,155 @@ def fazer_logout():
     print("Sessão encerrada. Faça login com outra conta.")
 
 # Usuários
+
+def registrar_nota_atividade():
+    """Registra uma nota de atividade para um estudante."""
+    if not exigir_professor():
+        return
+
+    print("\n--- REGISTRAR NOTA POR ATIVIDADE ---")
+    matricula = ler_texto("Matrícula do estudante: ")
+    aluno = buscar_usuario(matricula)
+
+    if aluno is None or aluno[2] != "estudante":
+        print("Estudante não encontrado.")
+        return
+    categorias = ["projeto", "atividade", "prova", "extra"]
+    print("\nCategorias:")
+    for numero, categoria in enumerate(categorias, start=1):
+        print(f"{numero}. {categoria}")
+    escolha = ler_inteiro("Escolha a categoria da atividade: ", 1, len(categorias))
+    categoria = categorias[escolha - 1]
+    observacao = ler_texto("descreva oq esta sendo avaliado: ")
+
+    while True:
+        try:
+            nota = float(input("Nota (0 a 10): ").strip().replace(",", "."))
+            if 0 <= nota <= 10:
+                break
+            print("A nota precisa estar entre 0 e 10.")
+        except ValueError:
+            print("Digite uma nota válida. Exemplo: 8,5")
+
+    while True:
+        try:
+            peso = float(input("Peso da atividade (maior que 0): ").strip().replace(",", "."))
+            if peso > 0:
+                break
+            print("O peso precisa ser maior que zero.")
+        except ValueError:
+            print("Digite um peso válido. Exemplo: 2")
+    data = datetime.now().strftime("%Y-%m-%d")
+
+    adicionar_linha(
+        ARQ_NOTAS,
+        [
+            matricula,
+            usuario_logado[0],  
+            categoria,
+            observacao,
+            data,
+            f"{nota:.2f}",
+            f"{peso:.2f}",
+        ],
+    )
+    registrar_log("REGISTRAR_NOTA_ATIVIDADE", matricula)
+    print(f"Nota de {categoria} registrada para {aluno[1]} com sucesso!")
+
+def consultar_boletim_individual():
+    """Exibe as notas e a média ponderada de um estudante."""
+    if not exigir_professor():
+        return
+
+    print("\n--- BOLETIM INDIVIDUAL ---")
+    matricula = ler_texto("Matrícula do estudante: ")
+    aluno = buscar_usuario(matricula)
+
+    if aluno is None or aluno[2] != "estudante":
+        print("Estudante não encontrado.")
+        return
+
+    notas = [
+        registro
+        for registro in carregar_linhas(ARQ_NOTAS)
+        if len(registro) >= 6 and registro[0] == matricula
+    ]
+
+    if not notas:
+        print(f"Nenhuma nota registrada para {aluno[1]}.")
+        return
+
+    print(f"\nEstudante: {aluno[1]}")
+    soma_ponderada = 0.0
+    soma_pesos = 0.0
+
+    for registro in notas:
+        if len(registro) < 7:
+            print("Registro antigo ignorado: formato anterior")
+            continue
+        categoria = registro[2]
+        observacao = registro[3]
+        data = registro[4]
+
+        try:
+            nota = float(registro[5])
+            peso = float(registro[6])
+        except ValueError:
+            print(f"Registro inválido ignorado: {observacao}.")
+            continue
+
+        print(f"{data} | {categoria} | {observacao} | Nota: {nota:.2f} | Peso: {peso:.2f}")
+        soma_ponderada += nota * peso
+        soma_pesos += peso
+
+    if soma_pesos > 0:
+        media = soma_ponderada / soma_pesos
+        print(f"\nMédia ponderada: {media:.2f}")
+    else:
+        print("\nNão foi possível calcular a média.")
+
+    registrar_log("CONSULTAR_BOLETIM", matricula)
+
+def solicitar_bloqueio_maquina():
+    """Registra uma solicitação para o administrador avaliar."""
+    if usuario_logado is None or usuario_logado[2] not in (
+        "professor",
+        PERFIL_ADMIN,
+    ):
+        print("Acesso negado: apenas professores ou administradores podem solicitar bloqueios.")
+        return
+
+    print("\n--- SOLICITAR BLOQUEIO DE MÁQUINA ---")
+    maquina = ler_texto("Máquina: ").upper()
+    motivo = ler_texto("Motivo da solicitação: ")
+    data = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    adicionar_linha(
+        ARQ_SOLICITACOES_BLOQUEIO,
+        [data, usuario_logado[0], maquina, motivo, "PENDENTE"],
+    )
+    registrar_log(f"SOLICITAR_BLOQUEIO_MAQUINA({maquina})")
+    print("Solicitação registrada para avaliação do administrador.")
+
+def consultar_solicitacoes_bloqueio():
+    """Lista pedidos pendentes para o administrador avaliar."""
+    if not exigir_admin():
+        return
+
+    print("\n--- SOLICITAÇÕES DE BLOQUEIO ---")
+    solicitacoes = carregar_linhas(ARQ_SOLICITACOES_BLOQUEIO)
+    pendentes = [s for s in solicitacoes if len(s) >= 5 and s[4] == "PENDENTE"]
+
+    if not pendentes:
+        print("Não há solicitações pendentes.")
+        return
+
+    for data, matricula_professor, maquina, motivo, _status in pendentes:
+        professor = buscar_usuario(matricula_professor)
+        nome = professor[1] if professor else "Professor não encontrado"
+        print(f"{data} | {maquina} | solicitado por {nome} | motivo: {motivo}")
+
+    print("\nPara bloquear uma máquina, use a opção administrativa 'Bloquear máquina'.")
 
 def mascarar_matricula(matricula):
     """Mostra só os 2 primeiros caracteres. Ex.: 20240001 -> 20******"""
@@ -454,15 +615,14 @@ def classificar_acesso(usuario, maquina, resultado, data_hora):
     else:
         nivel = "critico"
 
-    return nivel, motivos
+    return nivel, motivos, pontos
 
 def gravar_acesso(usuario, maquina, resultado, data_hora):
-    """Classifica o acesso e grava no acessos.csv. Devolve (nivel, motivos).
-    É usada tanto pelo registro manual quanto pelo login."""
-    nivel, motivos = classificar_acesso(usuario, maquina, resultado, data_hora)
+    """Classifica o acesso e grava no acessos.csv. Devolve (nivel, motivos, pontos)."""
+    nivel, motivos, pontos = classificar_acesso(usuario, maquina, resultado, data_hora)
     adicionar_linha(ARQ_ACESSOS, [usuario[0], data_hora.strftime("%Y-%m-%d %H:%M"),
-                                  maquina, resultado, nivel, " | ".join(motivos)])
-    return nivel, motivos
+                                  maquina, resultado, nivel, " | ".join(motivos), str(pontos)])
+    return nivel, motivos, pontos
 
 
 def registrar_acesso_login(usuario, maquina, resultado):
@@ -490,12 +650,25 @@ def registrar_acesso():
     resultado = "sucesso" if ler_inteiro("Escolha: ", 1, 2) == 1 else "falha"
     data_hora = ler_data_hora()
 
-    nivel, motivos = classificar_acesso(usuario, maquina, resultado, data_hora)
+    nivel, motivos, pontos = classificar_acesso(usuario, maquina, resultado, data_hora)
 
     if maquina in carregar_bloqueadas():
         print(f"\n*** AVISO: a máquina {maquina} está BLOQUEADA! ***")
-    registrar_log("registrar_acesso", matricula)
 
+    texto_motivos = " | ".join(motivos)
+    adicionar_linha(
+        ARQ_ACESSOS,
+        [
+            matricula,
+            data_hora.strftime("%Y-%m-%d %H:%M"),
+            maquina,
+            resultado,
+            nivel,
+            " | ".join(motivos),
+            str(pontos),
+        ],
+    )
+    registrar_log("REGISTRAR_ACESSO", matricula)
     print(f"\nAcesso registrado. Classificação: {nivel.upper()}")
     print("Por quê:")
     for motivo in motivos:
@@ -519,9 +692,17 @@ def consultar_acessos():
         print("Nenhum acesso registrado.")
         return
     for a in acessos:
-        print(f"{a[1]} | {mascarar_matricula(a[0])} | {a[2]} | {a[3]} | "
-              f"{a[4].upper()} | motivo: {a[5]}")
+       for a in acessos:
+        pontos = a[6] if len(a) > 6 else "não registrado (acesso antigo)"
+        linha = (
+            f"{a[1]} | {mascarar_matricula(a[0])} | {a[2]} | {a[3]} | "
+            f"{a[4].upper()} | motivo: {a[5]}"
+    )
 
+    if e_admin():
+        print(f"{linha} | Pontos de risco: {pontos}")
+    else:
+        print(linha)
 
 def bloquear_maquina():
     """Adiciona uma máquina à lista de bloqueio (somente administrador)."""

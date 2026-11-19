@@ -224,6 +224,9 @@ __marimo__/
 usuarios.csv
 acessos.csv
 auditoria.csv
+bloqueados.txt
+notas.csv
+solicitacoes_bloqueio.csv
 # Chaves locais
 .env
 .env.*
