@@ -19,8 +19,15 @@ import urllib.error
 import urllib.request
 from collections import Counter
 from pathlib import Path
-
 import funcoes
+PROMPT_SITUACAO_ALUNO = (
+    "Você ajuda professores a entender dados acadêmicos de um estudante. "
+    "Responda em português do Brasil, de forma clara e respeitosa. "
+    "Use somente os dados fornecidos. A média e a situação já foram calculadas "
+    "pelo programa; não refaça os cálculos nem altere a situação informada. "
+    "Considere as notas e os pesos das atividades registradas. "
+    "Não invente dados nem afirme informações que não aparecem nos dados."
+ )
 
 URL_GROQ = "https://api.groq.com/openai/v1/chat/completions"
 MODELO_PADRAO = "openai/gpt-oss-120b"
@@ -263,15 +270,6 @@ def analisar_com_ia():
         return
     print("\n" + revelar_pseudonimos(texto, pseudonimos))
     print("\nAviso: texto gerado por IA. Confira os dados antes de tomar qualquer ação.")
-
-    PROMPT_SITUACAO_ALUNO = (
-    "Você ajuda professores a entender a situação acadêmica de um estudante. "
-    "Responda em português do Brasil, de forma clara e respeitosa.\n"
-    "Use somente os dados fornecidos. A média e a situação já foram calculadas "
-    "pelo programa: não refaça os cálculos nem altere a situação informada. "
-    "Não afirme que o estudante passou de ano definitivamente; explique que "
-    "a situação considera apenas as duas provas informadas. Não invente dados."
-)
 
 
 def consultar_situacao_aluno():

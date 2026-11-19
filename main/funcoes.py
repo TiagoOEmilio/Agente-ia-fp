@@ -232,6 +232,16 @@ def trocar_senha_obrigatoria():
     registrar_log("TROCAR_SENHA", usuario_logado[0])
     print("Senha alterada com sucesso!")
 
+def registrar_acesso_login(usuario, maquina, resultado):
+    """Registra uma tentativa de login no arquivo de acessos."""
+    if usuario is None:
+        return
+
+    try:
+        gravar_acesso(usuario, maquina, resultado, datetime.now())
+    except (ValueError, IndexError):
+        print("Aviso: não foi possível registrar este acesso.")
+
 def fazer_login():
     """Pede máquina, matrícula e senha (3 tentativas). Devolve True se o login der certo.
     Máquina bloqueada: ninguém entra (nem o admin) e a tentativa é registrada no log
@@ -625,16 +635,76 @@ def gravar_acesso(usuario, maquina, resultado, data_hora):
     return nivel, motivos, pontos
 
 
-def registrar_acesso_login(usuario, maquina, resultado):
-    """Grava no acessos.csv uma tentativa de login real (com a data e hora de agora).
-    Matrícula que não existe não tem horário nem perfil para classificar: fica só no
-    log de auditoria. Um erro ao registrar nunca pode impedir o login."""
+def alertar_maquina_compartilhada(maquina):
+    """Avisa se mais de um usuário teve acesso bem-sucedido à máquina."""
+    matriculas = set()
+
+    for registro in carregar_linhas(ARQ_ACESSOS):
+        if len(registro) < 4:
+            continue
+
+        mesma_maquina = registro[2].strip().upper() == maquina.upper()
+        acesso_bem_sucedido = registro[3].strip().lower() == "sucesso"
+
+        if mesma_maquina and acesso_bem_sucedido:
+            matricula = registro[0].strip()
+            if matricula:
+                matriculas.add(matricula)
+
+    if len(matriculas) > 1:
+        print(f"\n*** ALERTA: a máquina {maquina} teve acesso bem-sucedido de vários usuários: ***")
+
+        for matricula in sorted(matriculas):
+            usuario = buscar_usuario(matricula)
+            nome = usuario[1] if usuario else "Usuário não encontrado"
+            matricula_oculta = matricula[:2] + "*" * max(0, len(matricula) - 2)
+            print(f" - {nome} (matrícula {matricula_oculta})")
+
+
+def registrar_acesso():
+    """Registra um acesso, classifica seu risco e alerta sobre uso compartilhado."""
+    print("\n--- REGISTRAR ACESSO ---")
+    matricula = ler_texto("Matrícula do usuário: ")
+    usuario = buscar_usuario(matricula)
+
     if usuario is None:
+        print("Usuário não encontrado. Cadastre-o antes.")
         return
-    try:
-        gravar_acesso(usuario, maquina, resultado, datetime.now())
-    except (ValueError, IndexError):
-        print("Aviso: não foi possível registrar este acesso (dados do usuário incompletos).")
+
+    maquina = ler_texto("Máquina de origem (ex.: PC-01): ").upper()
+
+    print("Resultado: 1-sucesso 2-falha")
+    resultado = "sucesso" if ler_inteiro("Escolha: ", 1, 2) == 1 else "falha"
+    data_hora = ler_data_hora()
+
+    nivel, motivos, pontos = classificar_acesso(
+        usuario, maquina, resultado, data_hora
+    )
+
+    if maquina in carregar_bloqueadas():
+        print(f"\n*** AVISO: a máquina {maquina} está BLOQUEADA! ***")
+
+    adicionar_linha(
+        ARQ_ACESSOS,
+        [
+            matricula,
+            data_hora.strftime("%Y-%m-%d %H:%M"),
+            maquina,
+            resultado,
+            nivel,
+            " | ".join(motivos),
+            str(pontos),
+        ],
+    )
+
+    registrar_log("REGISTRAR_ACESSO", matricula)
+
+    print(f"\nAcesso registrado. Classificação: {nivel.upper()}")
+    print("Por quê:")
+    for motivo in motivos:
+        print(f" - {motivo}")
+
+    alertar_maquina_compartilhada(maquina)
 
 def registrar_acesso():
     """Registra o acesso de um usuário a uma máquina e classifica o resultado."""
