@@ -224,3 +224,8 @@ __marimo__/
 usuarios.csv
 acessos.csv
 auditoria.csv
+# Chaves locais
+.env
+.env.*
+!.env.example
+api.env

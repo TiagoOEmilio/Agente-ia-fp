@@ -1,10 +1,5 @@
-# SentinelaLog - sistema de controle de acessos em Python (terminal).
-# Aqui ficam os menus e o início do programa.
-# As funções (arquivos, login, usuários, análise de risco...) estão no funcoes.py.
-
-
 import funcoes
-
+import ia
 # Menus
 
 def menu_usuarios():
@@ -49,6 +44,7 @@ def menu_principal():
         if funcoes.e_admin():
             opcoes.append(("Bloquear máquina", funcoes.bloquear_maquina))
             opcoes.append(("Desbloquear máquina", funcoes.desbloquear_maquina))
+            opcoes.append(("Análise de segurança com IA", ia.analisar_com_ia))
         opcoes.append(("Trocar de usuário (logout)", funcoes.fazer_logout))
 
         funcoes.limpar_tela()
@@ -66,11 +62,14 @@ def menu_principal():
             return False
         elif opcao.isdigit() and 1 <= int(opcao) <= len(opcoes):
             acao = opcoes[int(opcao) - 1][1]
+
             if acao == funcoes.fazer_logout:
                 funcoes.fazer_logout()
                 return True  
             if acao == menu_usuarios:
                 continue  
+            else:
+                acao()
         else:
             print("Opção inválida.")
         funcoes.pausar()
