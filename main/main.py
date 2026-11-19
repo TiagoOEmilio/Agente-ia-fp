@@ -46,13 +46,18 @@ def menu_principal():
             opcoes.append(("Desbloquear máquina", funcoes.desbloquear_maquina))
             opcoes.append(("Análise de segurança com IA", ia.analisar_com_ia))
             opcoes.append(("ver solicitações de bloqueio", funcoes.consultar_solicitacoes_bloqueio))
-        opcoes.append(("Trocar de usuário (logout)", funcoes.fazer_logout))
 
         if funcoes.usuario_logado[2] == "professor":
             opcoes.append(("Registrar nota por atividade", funcoes.registrar_nota_atividade))
             opcoes.append(("Consultar boletim individual", funcoes.consultar_boletim_individual))
             opcoes.append(("Solicitar bloqueio de máquina", funcoes.solicitar_bloqueio_maquina))
             opcoes.append(("consultar situação de aluno com IA", ia.consultar_situacao_aluno))
+
+        if funcoes.usuario_logado[2] == "estudante":
+            opcoes.append(("Meu desempenho e dicas de estudo", funcoes.consultar_meu_desempenho))
+            opcoes.append(("Meu histórico de acessos", funcoes.consultar_meus_acessos))
+        
+        opcoes.append(("Trocar de usuário (logout)", funcoes.fazer_logout))
         
         funcoes.limpar_tela()
         print("=== SentinelaLog ===")

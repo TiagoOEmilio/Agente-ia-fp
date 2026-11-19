@@ -394,6 +394,131 @@ def consultar_boletim_individual():
 
     registrar_log("CONSULTAR_BOLETIM", matricula)
 
+def consultar_meu_desempenho():
+    """Mostra ao estudante suas notas, médias e uma sugestão de foco."""
+    if usuario_logado is None or usuario_logado[2] != "estudante":
+        print("Acesso negado: esta opção é exclusiva para estudantes.")
+        return
+
+    matricula = usuario_logado[0]
+    registros = [
+        r for r in carregar_linhas(ARQ_NOTAS)
+        if len(r) >= 7 and r[0] == matricula
+    ]
+
+    print("\n--- MEU DESEMPENHO ---")
+
+    if not registros:
+        print("Ainda não há notas registradas para você.")
+        return
+
+    soma_ponderada = 0.0
+    soma_pesos = 0.0
+    por_categoria = {}
+
+    for registro in registros:
+        categoria = registro[2].strip().casefold()
+        descricao = registro[3].strip()
+        data = registro[4].strip()
+
+        try:
+            nota = float(registro[5].replace(",", "."))
+            peso = float(registro[6].replace(",", "."))
+        except ValueError:
+            continue
+
+        if not 0 <= nota <= 10 or peso <= 0:
+            continue
+
+        soma_ponderada += nota * peso
+        soma_pesos += peso
+
+        dados = por_categoria.setdefault(categoria, [0.0, 0.0])
+        dados[0] += nota * peso
+        dados[1] += peso
+
+        print(
+            f"{data} | {categoria} | {descricao} | "
+            f"Nota: {nota:.2f} | Peso: {peso:.2f}"
+        )
+
+    if soma_pesos == 0:
+        print("\nNão há notas válidas para calcular seu desempenho.")
+        return
+
+    media = soma_ponderada / soma_pesos
+
+    if media >= 7:
+        situacao = "Aprovado pela média atual."
+    elif media >= 4:
+        situacao = "Está na final."
+    else:
+        situacao = "Reprovado, sem direito à final."
+
+    print(f"\nMédia ponderada: {media:.2f}")
+    print(f"Situação atual: {situacao}")
+    print("\nMédia por categoria:")
+
+    medias_categoria = []
+    for categoria, (total, pesos) in por_categoria.items():
+        media_categoria = total / pesos
+        medias_categoria.append((categoria, media_categoria))
+        print(f"- {categoria.capitalize()}: {media_categoria:.2f}")
+
+    abaixo_de_sete = [
+        item for item in medias_categoria if item[1] < 7
+    ]
+
+    if abaixo_de_sete:
+        categoria_foco, media_foco = min(
+            abaixo_de_sete, key=lambda item: item[1]
+        )
+        print(
+            f"\nSugestão de estudo: revise principalmente "
+            f"{categoria_foco} (média {media_foco:.2f}) "
+            "e converse com o professor sobre as atividades."
+        )
+    else:
+        print(
+            "\nSugestão de estudo: mantenha seu ritmo e continue "
+            "acompanhando as próximas atividades."
+        )
+
+    registrar_log("CONSULTAR_MEU_DESEMPENHO", matricula)
+
+
+def consultar_meus_acessos():
+    """Mostra ao estudante somente os próprios registros de acesso."""
+    if usuario_logado is None or usuario_logado[2] != "estudante":
+        print("Acesso negado: esta opção é exclusiva para estudantes.")
+        return
+
+    matricula = usuario_logado[0]
+    acessos = [
+        a for a in carregar_linhas(ARQ_ACESSOS)
+        if len(a) >= 5 and a[0] == matricula
+    ]
+
+    print("\n--- MEU HISTÓRICO DE ACESSOS ---")
+
+    if not acessos:
+        print("Você ainda não possui acessos registrados.")
+        return
+
+    for acesso in reversed(acessos):
+        data_hora = acesso[1]
+        maquina = acesso[2]
+        resultado = acesso[3]
+        classificacao = acesso[4].upper()
+        motivos = acesso[5] if len(acesso) > 5 else "não informado"
+
+        print(
+            f"{data_hora} | {maquina} | {resultado} | "
+            f"{classificacao} | Motivo: {motivos}"
+        )
+
+    registrar_log("CONSULTAR_MEUS_ACESSOS", matricula)
+
 def solicitar_bloqueio_maquina():
     """Registra uma solicitação para o administrador avaliar."""
     if usuario_logado is None or usuario_logado[2] not in (
