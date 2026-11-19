@@ -716,21 +716,20 @@ def consultar_acessos():
         if len(a) < 5:
             print("registro de acesso invalido; nao foi exibido")
             continue
-        matricula = mascarar_matricula(acessos[0])
-        data_hora = acessos[1]
-        maquina = acessos[2]
-        resultado = acessos[3]
-        classificacao = acessos[4].upper()
-        motivos = acessos[5] if len(acessos) > 5 else "(sem motivos)"
+        matricula = mascarar_matricula(a[0])
+        data_hora, maquina, resultado = a[1], a[2], a[3]
+        classificacao = a[4].upper()
+        motivos = a[5] if len(a) > 5 else "(sem motivos)"
 
-        linha = (
-        f"{data_hora} | {maquina} | {matricula} | {classificacao} | motivo:{motivos} | {resultado}"
-        )
-    if e_admin():
-        pontos = acessos[6] if len(acessos) > 6 else "(sem pontos)"
-        print(f"{linha} | Pontos de risco: {pontos}")
-    else:
-        print(linha)
+        linha = (f"{data_hora} | {maquina} | {matricula} | {classificacao} | "
+                 f"motivo: {motivos} | {resultado}")
+        
+        if e_admin():
+            pontos = a[6] if len(a) > 6 else "(sem pontos)"
+            print(f"{linha} | Pontos de risco: {pontos}")
+        else:
+            print(linha)
+        
 
 def bloquear_maquina():
     """Adiciona uma máquina à lista de bloqueio (somente administrador)."""

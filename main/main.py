@@ -73,10 +73,9 @@ def menu_principal():
             if acao == funcoes.fazer_logout:
                 funcoes.fazer_logout()
                 return True  
+            acao()
             if acao == menu_usuarios:
-                continue  
-            else:
-                acao()
+                continue
         else:
             print("Opção inválida.")
         funcoes.pausar()
