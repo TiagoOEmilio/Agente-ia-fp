@@ -660,7 +660,6 @@ def alertar_maquina_compartilhada(maquina):
             matricula_oculta = matricula[:2] + "*" * max(0, len(matricula) - 2)
             print(f" - {nome} (matrícula {matricula_oculta})")
 
-
 def registrar_acesso():
     """Registra um acesso, classifica seu risco e alerta sobre uso compartilhado."""
     print("\n--- REGISTRAR ACESSO ---")
@@ -673,7 +672,7 @@ def registrar_acesso():
 
     maquina = ler_texto("Máquina de origem (ex.: PC-01): ").upper()
 
-    print("Resultado: 1-sucesso 2-falha")
+    print("Resultado: 1-sucesso  2-falha")
     resultado = "sucesso" if ler_inteiro("Escolha: ", 1, 2) == 1 else "falha"
     data_hora = ler_data_hora()
 
@@ -706,54 +705,6 @@ def registrar_acesso():
 
     alertar_maquina_compartilhada(maquina)
 
-def registrar_acesso():
-    """Registra o acesso de um usuário a uma máquina e classifica o resultado."""
-    print("\n--- REGISTRAR ACESSO ---")
-    matricula = ler_texto("Matrícula do usuário: ")
-    usuario = buscar_usuario(matricula)
-    if usuario is None:
-        print("Usuário não encontrado. Cadastre-o antes.")
-        return
-
-    maquina = ler_texto("Máquina de origem (ex.: PC-01): ").upper()
-    print("Resultado: 1-sucesso  2-falha")
-    resultado = "sucesso" if ler_inteiro("Escolha: ", 1, 2) == 1 else "falha"
-    data_hora = ler_data_hora()
-
-    nivel, motivos, pontos = classificar_acesso(usuario, maquina, resultado, data_hora)
-
-    if maquina in carregar_bloqueadas():
-        print(f"\n*** AVISO: a máquina {maquina} está BLOQUEADA! ***")
-
-    texto_motivos = " | ".join(motivos)
-    adicionar_linha(
-        ARQ_ACESSOS,
-        [
-            matricula,
-            data_hora.strftime("%Y-%m-%d %H:%M"),
-            maquina,
-            resultado,
-            nivel,
-            " | ".join(motivos),
-            str(pontos),
-        ],
-    )
-    registrar_log("REGISTRAR_ACESSO", matricula)
-    print(f"\nAcesso registrado. Classificação: {nivel.upper()}")
-    print("Por quê:")
-    for motivo in motivos:
-        print(f"  - {motivo}")
-    texto_motivos = " | ".join(motivos)
-    adicionar_linha(ARQ_ACESSOS, [matricula, data_hora.strftime("%Y-%m-%d %H:%M"),
-                                  maquina, resultado, nivel, texto_motivos])
-    registrar_log("REGISTRAR_ACESSO", matricula)
-
-    print(f"\nAcesso registrado. Classificação: {nivel.upper()}")
-    print("Por quê:")
-    for motivo in motivos:
-        print(f"  - {motivo}")
-
-
 def consultar_acessos():
     """Mostra na tela os acessos já registrados."""
     acessos = carregar_linhas(ARQ_ACESSOS)
@@ -762,14 +713,21 @@ def consultar_acessos():
         print("Nenhum acesso registrado.")
         return
     for a in acessos:
-       for a in acessos:
-        pontos = a[6] if len(a) > 6 else "não registrado (acesso antigo)"
-        linha = (
-            f"{a[1]} | {mascarar_matricula(a[0])} | {a[2]} | {a[3]} | "
-            f"{a[4].upper()} | motivo: {a[5]}"
-    )
+        if len(a) < 5:
+            print("registro de acesso invalido; nao foi exibido")
+            continue
+        matricula = mascarar_matricula(acessos[0])
+        data_hora = acessos[1]
+        maquina = acessos[2]
+        resultado = acessos[3]
+        classificacao = acessos[4].upper()
+        motivos = acessos[5] if len(acessos) > 5 else "(sem motivos)"
 
+        linha = (
+        f"{data_hora} | {maquina} | {matricula} | {classificacao} | motivo:{motivos} | {resultado}"
+        )
     if e_admin():
+        pontos = acessos[6] if len(acessos) > 6 else "(sem pontos)"
         print(f"{linha} | Pontos de risco: {pontos}")
     else:
         print(linha)
